@@ -114,11 +114,10 @@
 .primary-button,
 .text-button {
   min-height: 48px;
-  border: 1;
+  border: 0;
   border-radius: 10px;
   cursor: pointer;
   font: inherit;
-  border-color: #38283f;
 }
 
 .primary-button {
@@ -222,6 +221,35 @@
   pointer-events: none;
 }
 
+.note-keys {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.note-key {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(111, 71, 118, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.46);
+  color: #66566e;
+  cursor: pointer;
+  font: 600 12px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+
+.note-key[aria-pressed="true"] {
+  border-color: rgba(117, 88, 166, 0.75);
+  background: #84559b;
+  color: #fff;
+}
+
+.note-key:focus-visible {
+  outline: 3px solid #9d63ad;
+  outline-offset: 2px;
+}
+
 .camera-status {
   margin-top: 12px;
   color: #6d5c75;
@@ -277,11 +305,6 @@
   .app-shell {
     animation: none;
   }
-}
-
-.camera-shell {
-  width: min(640px, 100%);
-  margin: 0 auto 32px;
 }
 
 .camera-view {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Camera from "./components/Camera";
+import { enableAudio } from "./audio/notePlayer";
 import "./App.css";
 
 function App() {
@@ -39,6 +40,9 @@ function App() {
               className="primary-button"
               type="button"
               onClick={() => {
+                void enableAudio().catch((error: unknown) => {
+                  console.error("Could not start audio:", error);
+                });
                 setCameraDeclined(false);
                 setCameraEnabled(true);
               }}
