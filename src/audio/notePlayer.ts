@@ -1,57 +1,70 @@
 import * as Tone from "tone";
-import type { NoteName } from "../vision/gestures";
 
-export const INSTRUMENTS = ["Piano", "Guitar", "Synth"] as const;
-export type InstrumentName = (typeof INSTRUMENTS)[number];
+export const CHORD_MODES = ["Major", "Minor"] as const;
+export type ChordMode = (typeof CHORD_MODES)[number];
+export const CHORD_DEGREES = [1, 2, 3, 4, 5] as const;
+export type ChordDegree = (typeof CHORD_DEGREES)[number];
 
-const synth = new Tone.Synth({
+type ChordDefinition = {
+  numeral: string;
+  name: string;
+  notes: readonly string[];
+};
+
+const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
+  Major: [
+    { numeral: "I", name: "C", notes: ["C3", "E3", "G3", "C4"] },
+    { numeral: "ii", name: "Dm", notes: ["D3", "F3", "A3", "D4"] },
+    { numeral: "iii", name: "Em", notes: ["E3", "G3", "B3", "E4"] },
+    { numeral: "IV", name: "F", notes: ["F2", "A2", "C3", "F3"] },
+    { numeral: "V", name: "G", notes: ["G2", "B2", "D3", "G3"] },
+  ],
+  Minor: [
+    { numeral: "i", name: "Am", notes: ["A2", "C3", "E3", "A3"] },
+    { numeral: "ii°", name: "Bdim", notes: ["B2", "D3", "F3", "B3"] },
+    { numeral: "III", name: "C", notes: ["C3", "E3", "G3", "C4"] },
+    { numeral: "iv", name: "Dm", notes: ["D3", "F3", "A3", "D4"] },
+    { numeral: "v", name: "Em", notes: ["E3", "G3", "B3", "E4"] },
+  ],
+};
+
+const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
+const synth = new Tone.PolySynth(Tone.Synth, {
   oscillator: { type: "triangle" },
-  envelope: { attack: 0.005, decay: 0.22, sustain: 0.2, release: 0.45 },
-}).toDestination();
+  envelope: { attack: 0.035, decay: 0.7, sustain: 0.55, release: 1.4 },
+}).connect(reverb);
 
-synth.volume.value = -8;
+synth.volume.value = -9;
 
-let heldNote: NoteName | null = null;
+let heldChordKey: string | null = null;
+let heldNotes: readonly string[] = [];
 
 export async function enableAudio(): Promise<void> {
   await Tone.start();
 }
 
-export function setInstrument(instrument: InstrumentName): void {
-  if (heldNote !== null) {
-    synth.triggerRelease();
-    heldNote = null;
-  }
-
-  if (instrument === "Piano") {
-    synth.set({
-      oscillator: { type: "triangle" },
-      envelope: { attack: 0.005, decay: 0.22, sustain: 0.2, release: 0.45 },
-    });
-  } else if (instrument === "Guitar") {
-    synth.set({
-      oscillator: { type: "sawtooth" },
-      envelope: { attack: 0.003, decay: 0.28, sustain: 0.25, release: 0.3 },
-    });
-  } else {
-    synth.set({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.015, decay: 0.08, sustain: 1, release: 0.35 },
-    });
-  }
+export function getChordName(degree: ChordDegree, mode: ChordMode): string {
+  return CHORDS[mode][degree - 1].name;
 }
 
-export function holdNote(note: NoteName): void {
-  if (heldNote === note) return;
-  if (heldNote !== null) synth.triggerRelease();
-
-  synth.triggerAttack(note);
-  heldNote = note;
+export function getChordNumeral(degree: ChordDegree, mode: ChordMode): string {
+  return CHORDS[mode][degree - 1].numeral;
 }
 
-export function releaseNote(): void {
-  if (heldNote === null) return;
+export function holdChord(degree: ChordDegree, mode: ChordMode): void {
+  const chordKey = `${mode}:${degree}`;
+  if (heldChordKey === chordKey) return;
+  releaseChord();
 
-  synth.triggerRelease();
-  heldNote = null;
+  heldNotes = CHORDS[mode][degree - 1].notes;
+  synth.triggerAttack([...heldNotes]);
+  heldChordKey = chordKey;
+}
+
+export function releaseChord(): void {
+  if (heldNotes.length === 0) return;
+
+  synth.triggerRelease([...heldNotes]);
+  heldNotes = [];
+  heldChordKey = null;
 }

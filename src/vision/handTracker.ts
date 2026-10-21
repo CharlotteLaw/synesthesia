@@ -8,7 +8,7 @@ const MODEL_URL =
 
 export async function startHandTracking(
   video: HTMLVideoElement,
-  onLandmarks: (landmarks: NormalizedLandmark[][]) => void,
+  onLandmarks: (landmarks: NormalizedLandmark[][], timestamp: number) => void,
 ): Promise<() => void> {
   const vision = await FilesetResolver.forVisionTasks(WASM_URL);
   const landmarker = await HandLandmarker.createFromOptions(vision, {
@@ -29,8 +29,9 @@ export async function startHandTracking(
       video.currentTime !== lastVideoTime
     ) {
       lastVideoTime = video.currentTime;
-      const result = landmarker.detectForVideo(video, performance.now());
-      onLandmarks(result.landmarks);
+      const timestamp = performance.now();
+      const result = landmarker.detectForVideo(video, timestamp);
+      onLandmarks(result.landmarks, timestamp);
     }
 
     animationFrame = requestAnimationFrame(detectFrame);
