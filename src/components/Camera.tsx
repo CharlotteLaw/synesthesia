@@ -2,17 +2,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   CHORD_DEGREES,
+  CHORD_KEYS,
   CHORD_MODES,
   getChordName,
   getChordNumeral,
   holdChord,
   releaseChord,
 } from "../audio/notePlayer";
-import type { ChordDegree, ChordMode } from "../audio/notePlayer";
+import type { ChordDegree, ChordKey, ChordMode } from "../audio/notePlayer";
 import {
   getRaisedFingerCount,
 } from "../vision/gestures";
 import { startHandTracking } from "../vision/handTracker";
+
+function isChordKey(value: string): value is ChordKey {
+  return CHORD_KEYS.some((key) => key === value);
+}
 
 function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -23,18 +28,22 @@ function Camera() {
   const candidateSinceRef = useRef(0);
   const padHeldRef = useRef(false);
   const modeRef = useRef<ChordMode>("Major");
+  const keyRef = useRef<ChordKey>("C");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Starting camera...");
   const [trackerReady, setTrackerReady] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
   const [activeDegree, setActiveDegree] = useState<ChordDegree | null>(null);
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
+  const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
 
-  const chooseMode = (mode: ChordMode) => {
-    if (modeRef.current === mode) return;
+  const chooseChordSettings = (mode: ChordMode, key: ChordKey) => {
+    if (modeRef.current === mode && keyRef.current === key) return;
 
     modeRef.current = mode;
+    keyRef.current = key;
     setSelectedMode(mode);
+    setSelectedKey(key);
     padHeldRef.current = false;
     activeHandDegreeRef.current = null;
     candidateDegreeRef.current = null;
@@ -47,9 +56,9 @@ function Camera() {
   const startPadChord = (degree: ChordDegree) => {
     padHeldRef.current = true;
     activeHandDegreeRef.current = null;
-    holdChord(degree, modeRef.current);
+    holdChord(degree, modeRef.current, keyRef.current);
     setActiveDegree(degree);
-    setStatus(`${getChordNumeral(degree, modeRef.current)} · ${getChordName(degree, modeRef.current)} playing`);
+    setStatus(`${getChordName(degree, modeRef.current, keyRef.current)} playing`);
   };
 
   const stopPadChord = () => {
@@ -135,9 +144,9 @@ function Camera() {
 
     activeHandDegreeRef.current = detectedDegree;
     if (detectedDegree) {
-      holdChord(detectedDegree, modeRef.current);
+      holdChord(detectedDegree, modeRef.current, keyRef.current);
       setActiveDegree(detectedDegree);
-      setStatus(`${getChordNumeral(detectedDegree, modeRef.current)} · ${getChordName(detectedDegree, modeRef.current)} playing`);
+      setStatus(`${getChordName(detectedDegree, modeRef.current, keyRef.current)} playing`);
     } else {
       releaseChord();
       setActiveDegree(null);
@@ -209,26 +218,43 @@ function Camera() {
           <div className="camera-hint">Show your hand in frame</div>
         )}
       </div>
-      <div className="mode-selector" role="group" aria-label="Chord mode">
-        {CHORD_MODES.map((mode) => (
-          <button
-            key={mode}
-            className="mode-option"
-            type="button"
-            aria-pressed={selectedMode === mode}
-            onClick={() => chooseMode(mode)}
+      <div className="chord-settings">
+        <label className="key-selector">
+          <span>Key</span>
+          <select
+            value={selectedKey}
+            onChange={(event) => {
+              if (isChordKey(event.target.value)) {
+                chooseChordSettings(selectedMode, event.target.value);
+              }
+            }}
           >
-            {mode}
-          </button>
-        ))}
+            {CHORD_KEYS.map((key) => <option key={key} value={key}>{key}</option>)}
+          </select>
+        </label>
+        <div className="mode-selector" role="group" aria-label="Scale mode">
+          <span className="settings-label">Scale</span>
+          {CHORD_MODES.map((mode) => (
+            <button
+              key={mode}
+              className="mode-option"
+              type="button"
+              aria-pressed={selectedMode === mode}
+              onClick={() => chooseChordSettings(mode, selectedKey)}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
       </div>
+      <p className="chord-instructions">Chord buttons <span>Press a button or raise 1–5 fingers</span></p>
       <div className="chord-keys" role="group" aria-label="Play chords">
         {CHORD_DEGREES.map((degree) => (
           <button
             key={degree}
             className="chord-key"
             type="button"
-            aria-label={`${getChordNumeral(degree, selectedMode)} degree, ${getChordName(degree, selectedMode)} chord`}
+            aria-label={`${getChordName(degree, selectedMode, selectedKey)} chord, ${getChordNumeral(degree, selectedMode, selectedKey)} degree`}
             aria-pressed={activeDegree === degree}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
@@ -247,8 +273,8 @@ function Camera() {
             }}
             onBlur={stopPadChord}
           >
-            <span className="chord-degree">{getChordNumeral(degree, selectedMode)}</span>
-            <span className="chord-name">{getChordName(degree, selectedMode)}</span>
+            <span className="chord-name">{getChordName(degree, selectedMode, selectedKey)}</span>
+            <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey)} chord</span>
           </button>
         ))}
       </div>

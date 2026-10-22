@@ -2,31 +2,63 @@ import * as Tone from "tone";
 
 export const CHORD_MODES = ["Major", "Minor"] as const;
 export type ChordMode = (typeof CHORD_MODES)[number];
+export const CHORD_KEYS = [
+  "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B",
+] as const;
+export type ChordKey = (typeof CHORD_KEYS)[number];
 export const CHORD_DEGREES = [1, 2, 3, 4, 5] as const;
 export type ChordDegree = (typeof CHORD_DEGREES)[number];
 
 type ChordDefinition = {
   numeral: string;
-  name: string;
-  notes: readonly string[];
+  rootOffset: number;
+  quality: "" | "m" | "dim";
+  intervals: readonly [number, number, number];
 };
 
 const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
   Major: [
-    { numeral: "I", name: "C", notes: ["C3", "E3", "G3", "C4"] },
-    { numeral: "ii", name: "Dm", notes: ["D3", "F3", "A3", "D4"] },
-    { numeral: "iii", name: "Em", notes: ["E3", "G3", "B3", "E4"] },
-    { numeral: "IV", name: "F", notes: ["F2", "A2", "C3", "F3"] },
-    { numeral: "V", name: "G", notes: ["G2", "B2", "D3", "G3"] },
+    { numeral: "I", rootOffset: 0, quality: "", intervals: [0, 4, 7] },
+    { numeral: "ii", rootOffset: 2, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "iii", rootOffset: 4, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "IV", rootOffset: 5, quality: "", intervals: [0, 4, 7] },
+    { numeral: "V", rootOffset: 7, quality: "", intervals: [0, 4, 7] },
   ],
   Minor: [
-    { numeral: "i", name: "Am", notes: ["A2", "C3", "E3", "A3"] },
-    { numeral: "ii°", name: "Bdim", notes: ["B2", "D3", "F3", "B3"] },
-    { numeral: "III", name: "C", notes: ["C3", "E3", "G3", "C4"] },
-    { numeral: "iv", name: "Dm", notes: ["D3", "F3", "A3", "D4"] },
-    { numeral: "v", name: "Em", notes: ["E3", "G3", "B3", "E4"] },
+    { numeral: "i", rootOffset: 0, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "ii°", rootOffset: 2, quality: "dim", intervals: [0, 3, 6] },
+    { numeral: "III", rootOffset: 3, quality: "", intervals: [0, 4, 7] },
+    { numeral: "iv", rootOffset: 5, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "v", rootOffset: 7, quality: "m", intervals: [0, 3, 7] },
   ],
 };
+
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FLAT_NOTE_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const FLAT_KEYS: readonly ChordKey[] = ["F", "Db", "Eb", "Gb", "Ab", "Bb"];
+
+function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
+  definition: ChordDefinition;
+  rootMidi: number;
+  rootName: string;
+} {
+  const definition = CHORDS[mode][degree - 1];
+  const keyIndex = CHORD_KEYS.indexOf(key);
+  const rootIndex = keyIndex + definition.rootOffset;
+  const noteNames = FLAT_KEYS.includes(key) ? FLAT_NOTE_NAMES : NOTE_NAMES;
+
+  return {
+    definition,
+    rootMidi: 48 + rootIndex,
+    rootName: noteNames[rootIndex % noteNames.length],
+  };
+}
+
+function midiToNote(midi: number): string {
+  const noteName = NOTE_NAMES[midi % NOTE_NAMES.length];
+  const octave = Math.floor(midi / NOTE_NAMES.length) - 1;
+  return `${noteName}${octave}`;
+}
 
 const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
 const synth = new Tone.PolySynth(Tone.Synth, {
@@ -43,20 +75,22 @@ export async function enableAudio(): Promise<void> {
   await Tone.start();
 }
 
-export function getChordName(degree: ChordDegree, mode: ChordMode): string {
-  return CHORDS[mode][degree - 1].name;
+export function getChordName(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
+  const { definition, rootName } = getChord(degree, mode, key);
+  return `${rootName}${definition.quality}`;
 }
 
-export function getChordNumeral(degree: ChordDegree, mode: ChordMode): string {
-  return CHORDS[mode][degree - 1].numeral;
+export function getChordNumeral(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
+  return getChord(degree, mode, key).definition.numeral;
 }
 
-export function holdChord(degree: ChordDegree, mode: ChordMode): void {
-  const chordKey = `${mode}:${degree}`;
+export function holdChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): void {
+  const chordKey = `${key}:${mode}:${degree}`;
   if (heldChordKey === chordKey) return;
   releaseChord();
 
-  heldNotes = CHORDS[mode][degree - 1].notes;
+  const { definition, rootMidi } = getChord(degree, mode, key);
+  heldNotes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval)), midiToNote(rootMidi + 12)];
   synth.triggerAttack([...heldNotes]);
   heldChordKey = chordKey;
 }

@@ -238,20 +238,55 @@
   pointer-events: none;
 }
 
+.chord-settings {
+  display: grid;
+  grid-template-columns: minmax(78px, 0.65fr) minmax(0, 1.35fr);
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.key-selector {
+  display: grid;
+  gap: 5px;
+  color: #66566e;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.key-selector select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid rgba(111, 71, 118, 0.2);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #66566e;
+  cursor: pointer;
+  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+
 .mode-selector {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 12px;
+  gap: 5px;
   padding: 4px;
   border: 1px solid rgba(111, 71, 118, 0.16);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.38);
 }
 
+.settings-label {
+  grid-column: 1 / -1;
+  padding: 0 2px;
+  color: #66566e;
+  font-size: 11px;
+  font-weight: 650;
+}
+
 .mode-option {
   min-width: 0;
-  min-height: 40px;
+  min-height: 34px;
   border: 1px solid rgba(111, 71, 118, 0.2);
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.46);
@@ -267,6 +302,7 @@
 }
 
 .mode-option:focus-visible,
+.key-selector select:focus-visible,
 .chord-key:focus-visible {
   outline: 3px solid #9d63ad;
   outline-offset: 2px;
@@ -276,7 +312,24 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 6px;
+}
+
+.chord-instructions {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: #66566e;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.chord-instructions span {
+  font-size: 10px;
+  font-weight: 400;
+  text-align: right;
 }
 
 .chord-key {
