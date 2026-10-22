@@ -36,6 +36,7 @@ const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_NOTE_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 const FLAT_KEYS: readonly ChordKey[] = ["F", "Db", "Eb", "Gb", "Ab", "Bb"];
+const FLAT_MINOR_KEYS: readonly ChordKey[] = ["C", "G"];
 
 function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
   definition: ChordDefinition;
@@ -45,7 +46,8 @@ function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
   const definition = CHORDS[mode][degree - 1];
   const keyIndex = CHORD_KEYS.indexOf(key);
   const rootIndex = keyIndex + definition.rootOffset;
-  const noteNames = FLAT_KEYS.includes(key) ? FLAT_NOTE_NAMES : NOTE_NAMES;
+  const prefersFlats = FLAT_KEYS.includes(key) || (mode === "Minor" && FLAT_MINOR_KEYS.includes(key));
+  const noteNames = prefersFlats ? FLAT_NOTE_NAMES : NOTE_NAMES;
 
   return {
     definition,
