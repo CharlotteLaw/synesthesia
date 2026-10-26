@@ -38,6 +38,10 @@ const FLAT_NOTE_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "
 const FLAT_KEYS: readonly ChordKey[] = ["F", "Db", "Eb", "Gb", "Ab", "Bb"];
 const FLAT_MINOR_KEYS: readonly ChordKey[] = ["C", "G"];
 
+function prefersFlatNotation(key: ChordKey, mode: ChordMode): boolean {
+  return FLAT_KEYS.includes(key) || (mode === "Minor" && FLAT_MINOR_KEYS.includes(key));
+}
+
 function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
   definition: ChordDefinition;
   rootMidi: number;
@@ -46,8 +50,7 @@ function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
   const definition = CHORDS[mode][degree - 1];
   const keyIndex = CHORD_KEYS.indexOf(key);
   const rootIndex = keyIndex + definition.rootOffset;
-  const prefersFlats = FLAT_KEYS.includes(key) || (mode === "Minor" && FLAT_MINOR_KEYS.includes(key));
-  const noteNames = prefersFlats ? FLAT_NOTE_NAMES : NOTE_NAMES;
+  const noteNames = prefersFlatNotation(key, mode) ? FLAT_NOTE_NAMES : NOTE_NAMES;
 
   return {
     definition,
@@ -56,25 +59,47 @@ function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
   };
 }
 
-function midiToNote(midi: number): string {
-  const noteName = NOTE_NAMES[midi % NOTE_NAMES.length];
-  const octave = Math.floor(midi / NOTE_NAMES.length) - 1;
+function midiToNote(midi: number, preferFlats = false): string {
+  const noteNames = preferFlats ? FLAT_NOTE_NAMES : NOTE_NAMES;
+  const noteName = noteNames[midi % noteNames.length];
+  const octave = Math.floor(midi / noteNames.length) - 1;
   return `${noteName}${octave}`;
 }
 
-const reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
-const synth = new Tone.PolySynth(Tone.Synth, {
-  oscillator: { type: "triangle" },
-  envelope: { attack: 0.035, decay: 0.7, sustain: 0.55, release: 1.4 },
-}).connect(reverb);
+let reverb: Tone.Reverb | null = null;
+let synth: Tone.PolySynth<Tone.Synth> | null = null;
 
-synth.volume.value = -9;
+function canUseAudio(): boolean {
+  return typeof window !== "undefined" && "AudioContext" in window;
+}
+
+function ensureSynth(): Tone.PolySynth<Tone.Synth> | null {
+  if (!canUseAudio()) {
+    return null;
+  }
+
+  if (!synth) {
+    reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
+    synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.035, decay: 0.7, sustain: 0.55, release: 1.4 },
+    }).connect(reverb);
+    synth.volume.value = -9;
+  }
+
+  return synth;
+}
 
 let heldChordKey: string | null = null;
 let heldNotes: readonly string[] = [];
 
 export async function enableAudio(): Promise<void> {
+  if (!canUseAudio()) {
+    return;
+  }
+
   await Tone.start();
+  ensureSynth();
 }
 
 export function getChordName(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
@@ -87,18 +112,24 @@ export function getChordNumeral(degree: ChordDegree, mode: ChordMode, key: Chord
 }
 
 export function holdChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): void {
+  const synthInstance = ensureSynth();
+  if (!synthInstance) {
+    return;
+  }
+
   const chordKey = `${key}:${mode}:${degree}`;
   if (heldChordKey === chordKey) return;
   releaseChord();
 
   const { definition, rootMidi } = getChord(degree, mode, key);
-  heldNotes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval)), midiToNote(rootMidi + 12)];
-  synth.triggerAttack([...heldNotes]);
+  const preferFlats = prefersFlatNotation(key, mode);
+  heldNotes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval, preferFlats)), midiToNote(rootMidi + 12, preferFlats)];
+  synthInstance.triggerAttack([...heldNotes]);
   heldChordKey = chordKey;
 }
 
 export function releaseChord(): void {
-  if (heldNotes.length === 0) return;
+  if (heldNotes.length === 0 || !synth) return;
 
   synth.triggerRelease([...heldNotes]);
   heldNotes = [];
