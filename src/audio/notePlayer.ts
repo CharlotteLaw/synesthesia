@@ -95,7 +95,7 @@ let heldNotes: readonly string[] = [];
 
 export async function enableAudio(): Promise<void> {
   if (!canUseAudio()) {
-    return;
+    throw new Error("Audio is not supported in this browser.");
   }
 
   await Tone.start();

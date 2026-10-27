@@ -6,6 +6,7 @@ import "./App.css";
 function App() {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraDeclined, setCameraDeclined] = useState(false);
+  const [audioError, setAudioError] = useState("");
 
   return (
     <main className="app-shell">
@@ -30,6 +31,11 @@ function App() {
               Turn camera off
             </button>
           </div>
+          {audioError && (
+            <p className="camera-status camera-error" role="alert">
+              Audio unavailable: {audioError}
+            </p>
+          )}
           <Camera />
         </section>
       ) : (
@@ -42,7 +48,11 @@ function App() {
               onClick={() => {
                 void enableAudio().catch((error: unknown) => {
                   console.error("Could not start audio:", error);
+                  setAudioError(
+                    error instanceof Error ? error.message : "Could not start audio.",
+                  );
                 });
+                setAudioError("");
                 setCameraDeclined(false);
                 setCameraEnabled(true);
               }}
