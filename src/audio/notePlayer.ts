@@ -70,7 +70,16 @@ let reverb: Tone.Reverb | null = null;
 let synth: Tone.PolySynth<Tone.Synth> | null = null;
 
 function canUseAudio(): boolean {
-  return typeof window !== "undefined" && "AudioContext" in window;
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const audioContextFactory =
+    window.AudioContext ??
+    (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+
+  return typeof audioContextFactory === "function";
 }
 
 function ensureSynth(): Tone.PolySynth<Tone.Synth> | null {

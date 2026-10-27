@@ -6,7 +6,7 @@
   min-height: 100vh;
   min-height: 100svh;
   flex-direction: column;
-  padding: clamp(12px, 3vh, 24px) clamp(20px, 6vw, 88px);
+  padding: clamp(12px, 3vh, 24px) clamp(16px, 4vw, 56px);
   background:
     radial-gradient(ellipse at 12% 12%, rgba(255, 183, 211, 0.72), transparent 42%),
     radial-gradient(ellipse at 88% 85%, rgba(187, 165, 255, 0.68), transparent 44%),
@@ -72,7 +72,7 @@
 
 .welcome-panel,
 .instrument-panel {
-  width: min(780px, 100%);
+  width: min(1180px, 100%);
   margin: auto;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.78);
@@ -86,6 +86,7 @@
 }
 
 .welcome-panel {
+  max-width: 780px;
   box-sizing: border-box;
   padding: clamp(20px, min(7vw, 7vh), 76px);
 }
@@ -194,7 +195,7 @@
 
 .camera-view {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.75);
   border-radius: 14px;
