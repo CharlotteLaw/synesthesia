@@ -5,8 +5,8 @@
 Synesthesia is a browser-based hand-controlled chord instrument.
 
 - The welcome screen asks before enabling the camera.
-- The camera view uses MediaPipe hand landmarks to count raised fingers.
-- One through five raised fingers trigger the first through fifth chord in the current key and scale. The gesture is held to sustain the chord; lowering the fingers releases it.
+- The camera view uses MediaPipe hand landmarks and handedness labels to identify anatomical left and right hands.
+- One through five raised fingers on either hand trigger the first through fifth chord in the current key and scale. Each hand has its own voice, so both hands can hold different chords at the same time; lowering one hand's fingers releases only that hand's chord.
 - On-screen chord pads provide the same play action for pointer and keyboard users.
 - The player currently uses one triangle-wave Tone.js synth with a shared reverb effect.
 - The camera screen has a key selector covering all twelve chromatic keys and Major/Minor scale buttons.
@@ -40,7 +40,8 @@ Keep the current five-finger chord-playing interaction as the default. Add an ex
 - A player can enter and leave Setup intentionally; playing gestures do not silently change settings.
 - Major/Minor and each supported chord type can be selected and are visibly confirmed.
 - Switching settings releases any currently held chord and the next played chord uses the new settings.
-- One-to-five finger chord playing and pointer/keyboard pads continue to work in Play mode.
+- One-to-five finger chord playing works independently for anatomical left and right hands; pointer/keyboard pads continue to work in Play mode.
+- Hand identity is based on handedness labels, not detection order or screen position, and works with the mirrored camera preview.
 - Gesture recognition is stable enough to avoid rapid accidental switching; show a prompt when no supported gesture is recognized.
 
 ## Following milestone: sound palette

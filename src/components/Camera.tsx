@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
   CHORD_DEGREES,
   CHORD_KEYS,
@@ -14,26 +13,41 @@ import {
   getRaisedFingerCount,
 } from "../vision/gestures";
 import { startHandTracking } from "../vision/handTracker";
+import type { HandSide, TrackedHand } from "../vision/handTracker";
 
 function isChordKey(value: string): value is ChordKey {
   return CHORD_KEYS.some((key) => key === value);
+}
+
+function getActiveChordDegrees(
+  left: ChordDegree | null,
+  right: ChordDegree | null,
+  pad: ChordDegree | null,
+): ChordDegree[] {
+  return [...new Set([left, right, pad].filter((degree): degree is ChordDegree => degree !== null))];
 }
 
 function Camera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cameraViewRef = useRef<HTMLDivElement>(null);
-  const activeHandDegreeRef = useRef<ChordDegree | null>(null);
-  const candidateDegreeRef = useRef<ChordDegree | null>(null);
-  const candidateSinceRef = useRef(0);
-  const padHeldRef = useRef(false);
+  const activeHandDegreesRef = useRef<Record<HandSide, ChordDegree | null>>({
+    left: null,
+    right: null,
+  });
+  const candidateDegreesRef = useRef<Record<HandSide, ChordDegree | null>>({
+    left: null,
+    right: null,
+  });
+  const candidateSinceRefs = useRef<Record<HandSide, number>>({ left: 0, right: 0 });
+  const activePadDegreeRef = useRef<ChordDegree | null>(null);
   const modeRef = useRef<ChordMode>("Major");
   const keyRef = useRef<ChordKey>("C");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Starting camera...");
   const [trackerReady, setTrackerReady] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
-  const [activeDegree, setActiveDegree] = useState<ChordDegree | null>(null);
+  const [activeDegrees, setActiveDegrees] = useState<ChordDegree[]>([]);
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
   const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
 
@@ -44,36 +58,42 @@ function Camera() {
     keyRef.current = key;
     setSelectedMode(mode);
     setSelectedKey(key);
-    padHeldRef.current = false;
-    activeHandDegreeRef.current = null;
-    candidateDegreeRef.current = null;
-    candidateSinceRef.current = 0;
+    activeHandDegreesRef.current = { left: null, right: null };
+    candidateDegreesRef.current = { left: null, right: null };
+    candidateSinceRefs.current = { left: 0, right: 0 };
+    activePadDegreeRef.current = null;
     releaseChord();
-    setActiveDegree(null);
+    setActiveDegrees([]);
     setStatus("Show your hand in frame");
   };
 
   const startPadChord = (degree: ChordDegree) => {
-    padHeldRef.current = true;
-    activeHandDegreeRef.current = null;
-    holdChord(degree, modeRef.current, keyRef.current);
-    setActiveDegree(degree);
+    holdChord(degree, modeRef.current, keyRef.current, "pad");
+    activePadDegreeRef.current = degree;
+    setActiveDegrees(getActiveChordDegrees(
+      activeHandDegreesRef.current.left,
+      activeHandDegreesRef.current.right,
+      activePadDegreeRef.current,
+    ));
     setStatus(`${getChordName(degree, modeRef.current, keyRef.current)} playing`);
   };
 
   const stopPadChord = () => {
-    if (!padHeldRef.current) return;
-
-    padHeldRef.current = false;
-    activeHandDegreeRef.current = null;
-    candidateDegreeRef.current = null;
-    candidateSinceRef.current = performance.now();
-    releaseChord();
-    setActiveDegree(null);
-    setStatus("Show your hand in frame");
+    releaseChord("pad");
+    activePadDegreeRef.current = null;
+    setActiveDegrees(getActiveChordDegrees(
+      activeHandDegreesRef.current.left,
+      activeHandDegreesRef.current.right,
+      activePadDegreeRef.current,
+    ));
+    const activeSide = activeHandDegreesRef.current.right ? "right" : "left";
+    const activeHandDegree = activeHandDegreesRef.current[activeSide];
+    setStatus(activeHandDegree
+      ? `${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current)} playing`
+      : "Show your hand in frame");
   };
 
-  const drawLandmarks = useCallback((hands: NormalizedLandmark[][], timestamp: number) => {
+  const drawLandmarks = useCallback((hands: TrackedHand[], timestamp: number) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
@@ -87,14 +107,13 @@ function Camera() {
       canvas.height = video.videoHeight;
     }
 
-    const hand = hands[0];
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#b7ff56";
     context.strokeStyle = "#142018";
     context.lineWidth = Math.max(2, canvas.width * 0.003);
 
-    for (const landmarks of hands) {
-      for (const landmark of landmarks) {
+    for (const hand of hands) {
+      for (const landmark of hand.landmarks) {
         const x = landmark.x * canvas.width;
         const y = landmark.y * canvas.height;
         const radius = Math.max(4, canvas.width * 0.007);
@@ -104,53 +123,76 @@ function Camera() {
         context.fill();
         context.stroke();
       }
+
+      const indexTip = hand.landmarks[8];
+      if (indexTip) {
+        context.beginPath();
+        context.arc(
+          indexTip.x * canvas.width,
+          indexTip.y * canvas.height,
+          Math.max(12, canvas.width * 0.018),
+          0,
+          Math.PI * 2,
+        );
+        context.strokeStyle = "#b7ff56";
+        context.lineWidth = Math.max(3, canvas.width * 0.004);
+        context.stroke();
+      }
     }
 
-    if (hand?.[8]) {
-      context.beginPath();
-      context.arc(
-        hand[8].x * canvas.width,
-        hand[8].y * canvas.height,
-        Math.max(12, canvas.width * 0.018),
-        0,
-        Math.PI * 2,
-      );
-      context.strokeStyle = "#b7ff56";
-      context.lineWidth = Math.max(3, canvas.width * 0.004);
-      context.stroke();
-    }
-
-    const hasHand = Boolean(hand);
+    const hasHand = hands.length > 0;
     setHandDetected(hasHand);
 
-    if (padHeldRef.current) return;
+    for (const side of ["left", "right"] as const) {
+      const hand = hands.find((trackedHand) => trackedHand.side === side);
+      const detectedCount = hand ? getRaisedFingerCount(hand.landmarks) : null;
+      const detectedDegree =
+        detectedCount && detectedCount <= CHORD_DEGREES.length
+          ? detectedCount as ChordDegree
+          : null;
 
-    const detectedCount = hand ? getRaisedFingerCount(hand) : null;
-    const detectedDegree = detectedCount as ChordDegree | null;
-    if (hasHand && !detectedDegree) {
-      setStatus("Hand detected · raise 1–5 fingers to play chords");
-    } else if (!hasHand) {
-      setStatus("Show your hand in frame");
-    }
-    const now = timestamp;
+      if (candidateDegreesRef.current[side] !== detectedDegree) {
+        candidateDegreesRef.current[side] = detectedDegree;
+        candidateSinceRefs.current[side] = timestamp;
+      }
 
-    if (candidateDegreeRef.current !== detectedDegree) {
-      candidateDegreeRef.current = detectedDegree;
-      candidateSinceRef.current = now;
-    }
+      if (
+        timestamp - candidateSinceRefs.current[side] < 220 ||
+        activeHandDegreesRef.current[side] === detectedDegree
+      ) {
+        continue;
+      }
 
-    if (now - candidateSinceRef.current < 220) return;
-    if (activeHandDegreeRef.current === detectedDegree) return;
-
-    activeHandDegreeRef.current = detectedDegree;
-    if (detectedDegree) {
-      holdChord(detectedDegree, modeRef.current, keyRef.current);
-      setActiveDegree(detectedDegree);
-      setStatus(`${getChordName(detectedDegree, modeRef.current, keyRef.current)} playing`);
-    } else {
-      releaseChord();
-      setActiveDegree(null);
-      setStatus(hasHand ? "Hand detected · raise 1–5 fingers to play chords" : "Show your hand in frame");
+      activeHandDegreesRef.current[side] = detectedDegree;
+      if (detectedDegree) {
+        holdChord(detectedDegree, modeRef.current, keyRef.current, side);
+        setActiveDegrees(getActiveChordDegrees(
+          activeHandDegreesRef.current.left,
+          activeHandDegreesRef.current.right,
+          activePadDegreeRef.current,
+        ));
+        setStatus(`${side === "left" ? "Left" : "Right"} hand: ${getChordName(detectedDegree, modeRef.current, keyRef.current)} playing`);
+      } else {
+        releaseChord(side);
+        setActiveDegrees(getActiveChordDegrees(
+          activeHandDegreesRef.current.left,
+          activeHandDegreesRef.current.right,
+          activePadDegreeRef.current,
+        ));
+        if (activeHandDegreesRef.current.left === null && activeHandDegreesRef.current.right === null) {
+          setStatus(activePadDegreeRef.current
+            ? `${getChordName(activePadDegreeRef.current, modeRef.current, keyRef.current)} playing`
+            : hasHand
+              ? "Hand detected · raise 1–5 fingers with either hand"
+              : "Show your hand in frame");
+        } else {
+          const activeSide = activeHandDegreesRef.current.right ? "right" : "left";
+          const activeHandDegree = activeHandDegreesRef.current[activeSide];
+          if (activeHandDegree) {
+            setStatus(`${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current)} playing`);
+          }
+        }
+      }
     }
   }, []);
 
@@ -247,7 +289,7 @@ function Camera() {
           ))}
         </div>
       </div>
-      <p className="chord-instructions">Chord buttons <span>Press a button or raise 1–5 fingers</span></p>
+      <p className="chord-instructions">Chord buttons <span>Press a button or raise 1–5 fingers with either hand</span></p>
       <div className="chord-keys" role="group" aria-label="Play chords">
         {CHORD_DEGREES.map((degree) => (
           <button
@@ -255,7 +297,7 @@ function Camera() {
             className="chord-key"
             type="button"
             aria-label={`${getChordName(degree, selectedMode, selectedKey)} chord, ${getChordNumeral(degree, selectedMode, selectedKey)} degree`}
-            aria-pressed={activeDegree === degree}
+            aria-pressed={activeDegrees.includes(degree)}
             onPointerDown={(event) => {
               event.currentTarget.setPointerCapture(event.pointerId);
               startPadChord(degree);

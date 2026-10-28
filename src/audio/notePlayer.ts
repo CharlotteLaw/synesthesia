@@ -66,8 +66,11 @@ function midiToNote(midi: number, preferFlats = false): string {
   return `${noteName}${octave}`;
 }
 
+export type ChordVoice = "left" | "right" | "pad";
+
 let reverb: Tone.Reverb | null = null;
-let synth: Tone.PolySynth<Tone.Synth> | null = null;
+const synths: Partial<Record<ChordVoice, Tone.PolySynth<Tone.Synth>>> = {};
+const heldChords = new Map<ChordVoice, { key: string; notes: readonly string[] }>();
 
 function canUseAudio(): boolean {
   if (typeof window === "undefined") {
@@ -82,25 +85,26 @@ function canUseAudio(): boolean {
   return typeof audioContextFactory === "function";
 }
 
-function ensureSynth(): Tone.PolySynth<Tone.Synth> | null {
+function ensureSynth(voice: ChordVoice): Tone.PolySynth<Tone.Synth> | null {
   if (!canUseAudio()) {
     return null;
   }
 
-  if (!synth) {
+  if (!reverb) {
     reverb = new Tone.Reverb({ decay: 2.5, wet: 0.22 }).toDestination();
-    synth = new Tone.PolySynth(Tone.Synth, {
+  }
+
+  if (!synths[voice]) {
+    const synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "triangle" },
       envelope: { attack: 0.035, decay: 0.7, sustain: 0.55, release: 1.4 },
     }).connect(reverb);
     synth.volume.value = -9;
+    synths[voice] = synth;
   }
 
-  return synth;
+  return synths[voice] ?? null;
 }
-
-let heldChordKey: string | null = null;
-let heldNotes: readonly string[] = [];
 
 export async function enableAudio(): Promise<void> {
   if (!canUseAudio()) {
@@ -108,7 +112,7 @@ export async function enableAudio(): Promise<void> {
   }
 
   await Tone.start();
-  ensureSynth();
+  ensureSynth("pad");
 }
 
 export function getChordName(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
@@ -120,27 +124,37 @@ export function getChordNumeral(degree: ChordDegree, mode: ChordMode, key: Chord
   return getChord(degree, mode, key).definition.numeral;
 }
 
-export function holdChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): void {
-  const synthInstance = ensureSynth();
+export function holdChord(
+  degree: ChordDegree,
+  mode: ChordMode,
+  key: ChordKey,
+  voice: ChordVoice = "pad",
+): void {
+  const synthInstance = ensureSynth(voice);
   if (!synthInstance) {
     return;
   }
 
   const chordKey = `${key}:${mode}:${degree}`;
-  if (heldChordKey === chordKey) return;
-  releaseChord();
+  if (heldChords.get(voice)?.key === chordKey) return;
+  releaseChord(voice);
 
   const { definition, rootMidi } = getChord(degree, mode, key);
   const preferFlats = prefersFlatNotation(key, mode);
-  heldNotes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval, preferFlats)), midiToNote(rootMidi + 12, preferFlats)];
-  synthInstance.triggerAttack([...heldNotes]);
-  heldChordKey = chordKey;
+  const notes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval, preferFlats)), midiToNote(rootMidi + 12, preferFlats)];
+  synthInstance.triggerAttack([...notes]);
+  heldChords.set(voice, { key: chordKey, notes });
 }
 
-export function releaseChord(): void {
-  if (heldNotes.length === 0 || !synth) return;
+export function releaseChord(voice?: ChordVoice): void {
+  const voices = voice ? [voice] : [...heldChords.keys()];
 
-  synth.triggerRelease([...heldNotes]);
-  heldNotes = [];
-  heldChordKey = null;
+  for (const activeVoice of voices) {
+    const heldChord = heldChords.get(activeVoice);
+    const synth = synths[activeVoice];
+    if (!heldChord || !synth) continue;
+
+    synth.triggerRelease([...heldChord.notes]);
+    heldChords.delete(activeVoice);
+  }
 }

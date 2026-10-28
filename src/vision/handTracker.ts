@@ -1,6 +1,13 @@
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
+export type HandSide = "left" | "right";
+
+export type TrackedHand = {
+  landmarks: NormalizedLandmark[];
+  side: HandSide | null;
+};
+
 const WASM_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 const MODEL_URL =
@@ -8,7 +15,7 @@ const MODEL_URL =
 
 export async function startHandTracking(
   video: HTMLVideoElement,
-  onLandmarks: (landmarks: NormalizedLandmark[][], timestamp: number) => void,
+  onHands: (hands: TrackedHand[], timestamp: number) => void,
 ): Promise<() => void> {
   const vision = await FilesetResolver.forVisionTasks(WASM_URL);
   const landmarker = await HandLandmarker.createFromOptions(vision, {
@@ -31,7 +38,16 @@ export async function startHandTracking(
       lastVideoTime = video.currentTime;
       const timestamp = performance.now();
       const result = landmarker.detectForVideo(video, timestamp);
-      onLandmarks(result.landmarks, timestamp);
+      const hands = result.landmarks.map((landmarks, index): TrackedHand => {
+        const label = result.handedness[index]?.[0]?.categoryName;
+
+        return {
+          landmarks,
+          // MediaPipe labels assume a mirrored input; the camera stream itself is not mirrored.
+          side: label === "Left" ? "right" : label === "Right" ? "left" : null,
+        };
+      });
+      onHands(hands, timestamp);
     }
 
     animationFrame = requestAnimationFrame(detectFrame);
