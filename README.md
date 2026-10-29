@@ -1,75 +1,49 @@
-# React + TypeScript + Vite
+# Synesthesia
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Synesthesia is a browser-based hand-controlled chord instrument. It uses a webcam and MediaPipe hand tracking to turn finger counts into chords, with Tone.js generating the sound.
 
-Currently, two official plugins are available:
+## What works now
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- The app asks before turning on the camera.
+- One through five raised fingers on either hand play chord degrees I through V in the selected key and Major/Minor scale.
+- Left and right hands have independent voices, so they can play different chords at the same time. Releasing one hand does not release the other.
+- On-screen chord pads also play the chords and support pointer and keyboard input.
+- The instrument screen has Key, Scale, and Sound controls grouped together.
+- The Sound selector offers Warm pluck, Bright synth, and Airy bubbles.
+- The instrument layout uses a wider camera view and workspace on larger screens.
 
-## React Compiler
+## Current limitations
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Three synthesized sound styles are available: Warm pluck, Bright synth, and Airy bubbles. These are sound-inspired synth timbres, not sampled guitar or other realistic instruments.
+- The available chords are the five diatonic triads for the selected scale. Chord qualities such as seventh and suspended chords are not selectable.
+- Fingers are currently used to play chords, not to change key, scale, or chord type.
+- Hand tracking should be tested in the target browsers and lighting conditions, especially the left/right labels with the mirrored preview.
 
-## Expanding the ESLint configuration
+## What happens next
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The next milestone is **gesture-based music setup**:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. Add explicit **Setup** and **Play** modes so settings gestures cannot accidentally trigger chords.
+2. Let the player choose Major/Minor and a chord type in Setup, with visible confirmation.
+3. Keep the existing five-finger chord playing in Play, independently for each hand.
+4. Keep on-screen controls as an accessible fallback.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+The sound palette is implemented. A natural next step is to test the three presets on real devices, then build Setup / Play mode for hand-driven key, scale, and chord-type selection.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+See the [design doc](./docs/design.md) for the fuller product status, proposed interaction, and acceptance checks. The exact Setup gesture mapping and the chord types to support still need product decisions and player testing.
 
+## Run locally
+
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Camera access requires browser permission and a secure context (localhost is supported).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Validate
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```sh
+npm run build
+npm run lint
 ```

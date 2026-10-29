@@ -8,14 +8,15 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 - The camera view uses MediaPipe hand landmarks and handedness labels to identify anatomical left and right hands.
 - One through five raised fingers on either hand trigger the first through fifth chord in the current key and scale. Each hand has its own voice, so both hands can hold different chords at the same time; lowering one hand's fingers releases only that hand's chord.
 - On-screen chord pads provide the same play action for pointer and keyboard users.
-- The player currently uses one triangle-wave Tone.js synth with a shared reverb effect.
+- The player offers Warm pluck, Bright synth, and Airy bubbles synthesized Tone.js presets with a shared reverb effect. These are sound-inspired synth timbres, not sampled acoustic instruments.
 - The camera screen has a key selector covering all twelve chromatic keys and Major/Minor scale buttons.
+- Key, Scale, and Sound are presented together as peer settings.
 - Chord names, Roman numerals, and triad intervals are generated for the selected key and scale.
 
 ## What is missing or limited
 
 - **Finger-based setup:** Key and scale are selected with on-screen controls. Fingers currently play chord degrees only; they do not choose Major/Minor or a chord quality.
-- **Sound selection:** There is no instrument or sound-style selector. Every chord uses the same triangle synth; acoustic guitar, EDM, and airy/bubbly sounds are not available yet.
+- **Sound selection:** The app has three synthesized sound presets. A realistic acoustic guitar is not available; Warm pluck is only string-like. Presets can be expanded or refined based on listening tests.
 - **Chord vocabulary:** The current five chord pads are diatonic triads for the selected scale. Users cannot choose a separate chord quality such as seventh, suspended, or an alternate voicing.
 - **Responsive workspace:** The instrument panel had a 780px maximum width, so it stayed narrow on larger displays.
 
@@ -44,7 +45,7 @@ Keep the current five-finger chord-playing interaction as the default. Add an ex
 - Hand identity is based on handedness labels, not detection order or screen position, and works with the mirrored camera preview.
 - Gesture recognition is stable enough to avoid rapid accidental switching; show a prompt when no supported gesture is recognized.
 
-## Following milestone: sound palette
+## Sound palette
 
 Add a **Sound** selector for a small, clearly named set of presets:
 
@@ -52,13 +53,13 @@ Add a **Sound** selector for a small, clearly named set of presets:
 - **Bright synth** — a crisp, punchy electronic tone for an EDM-inspired feel.
 - **Airy bubbles** — a light, rounded bell/pluck tone with a softer attack and lingering, gentle ambience.
 
-The selected sound should apply consistently to both hand gestures and chord pads. Keep the current sound as the default until each preset is implemented and tested. A later iteration can consider sampled acoustic guitar and more detailed sound controls.
+The selected sound applies consistently to both hands and chord pads. A later iteration can consider sampled acoustic guitar and more detailed sound controls.
 
 ### Acceptance checks
 
 - The selected preset is visible and can be changed without changing key, scale, or chord.
 - Each preset is audibly distinct at a comfortable volume and works for both sustained gestures and pad presses.
-- Changing presets releases or safely transitions any held notes; it does not leave stuck notes or create competing synths.
+- Changing presets releases held notes and allows active hand gestures to trigger using the new sound; it does not leave stuck notes or create competing synths.
 - Audio startup errors remain visible to the player.
 
 ## Current UI change

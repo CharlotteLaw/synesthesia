@@ -8,6 +8,8 @@ export const CHORD_KEYS = [
 export type ChordKey = (typeof CHORD_KEYS)[number];
 export const CHORD_DEGREES = [1, 2, 3, 4, 5] as const;
 export type ChordDegree = (typeof CHORD_DEGREES)[number];
+export const SOUND_PRESETS = ["Warm pluck", "Bright synth", "Airy bubbles"] as const;
+export type SoundPreset = (typeof SOUND_PRESETS)[number];
 
 type ChordDefinition = {
   numeral: string;
@@ -71,6 +73,36 @@ export type ChordVoice = "left" | "right" | "pad";
 let reverb: Tone.Reverb | null = null;
 const synths: Partial<Record<ChordVoice, Tone.PolySynth<Tone.Synth>>> = {};
 const heldChords = new Map<ChordVoice, { key: string; notes: readonly string[] }>();
+let selectedSound: SoundPreset = "Warm pluck";
+
+function applySoundPreset(synth: Tone.PolySynth<Tone.Synth>, preset: SoundPreset): void {
+  switch (preset) {
+    case "Warm pluck":
+      synth.set({
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.012, decay: 0.48, sustain: 0.12, release: 0.55 },
+      });
+      synth.volume.value = -9;
+      if (reverb) reverb.wet.value = 0.18;
+      break;
+    case "Bright synth":
+      synth.set({
+        oscillator: { type: "sawtooth" },
+        envelope: { attack: 0.008, decay: 0.32, sustain: 0.38, release: 0.24 },
+      });
+      synth.volume.value = -13;
+      if (reverb) reverb.wet.value = 0.1;
+      break;
+    case "Airy bubbles":
+      synth.set({
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.04, decay: 0.9, sustain: 0.08, release: 1.25 },
+      });
+      synth.volume.value = -10;
+      if (reverb) reverb.wet.value = 0.32;
+      break;
+  }
+}
 
 function canUseAudio(): boolean {
   if (typeof window === "undefined") {
@@ -97,9 +129,9 @@ function ensureSynth(voice: ChordVoice): Tone.PolySynth<Tone.Synth> | null {
   if (!synths[voice]) {
     const synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "triangle" },
-      envelope: { attack: 0.035, decay: 0.7, sustain: 0.55, release: 1.4 },
+      envelope: { attack: 0.012, decay: 0.48, sustain: 0.12, release: 0.55 },
     }).connect(reverb);
-    synth.volume.value = -9;
+    applySoundPreset(synth, selectedSound);
     synths[voice] = synth;
   }
 
@@ -113,6 +145,17 @@ export async function enableAudio(): Promise<void> {
 
   await Tone.start();
   ensureSynth("pad");
+}
+
+export function setSoundPreset(preset: SoundPreset): void {
+  if (preset === selectedSound) return;
+
+  releaseChord();
+  selectedSound = preset;
+
+  for (const synth of Object.values(synths)) {
+    if (synth) applySoundPreset(synth, preset);
+  }
 }
 
 export function getChordName(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {

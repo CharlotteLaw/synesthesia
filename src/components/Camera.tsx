@@ -3,12 +3,14 @@ import {
   CHORD_DEGREES,
   CHORD_KEYS,
   CHORD_MODES,
+  SOUND_PRESETS,
   getChordName,
   getChordNumeral,
   holdChord,
   releaseChord,
+  setSoundPreset,
 } from "../audio/notePlayer";
-import type { ChordDegree, ChordKey, ChordMode } from "../audio/notePlayer";
+import type { ChordDegree, ChordKey, ChordMode, SoundPreset } from "../audio/notePlayer";
 import {
   getRaisedFingerCount,
 } from "../vision/gestures";
@@ -17,6 +19,10 @@ import type { HandSide, TrackedHand } from "../vision/handTracker";
 
 function isChordKey(value: string): value is ChordKey {
   return CHORD_KEYS.some((key) => key === value);
+}
+
+function isSoundPreset(value: string): value is SoundPreset {
+  return SOUND_PRESETS.some((sound) => sound === value);
 }
 
 function getActiveChordDegrees(
@@ -50,6 +56,7 @@ function Camera() {
   const [activeDegrees, setActiveDegrees] = useState<ChordDegree[]>([]);
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
   const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
+  const [selectedSound, setSelectedSound] = useState<SoundPreset>("Warm pluck");
 
   const chooseChordSettings = (mode: ChordMode, key: ChordKey) => {
     if (modeRef.current === mode && keyRef.current === key) return;
@@ -65,6 +72,19 @@ function Camera() {
     releaseChord();
     setActiveDegrees([]);
     setStatus("Show your hand in frame");
+  };
+
+  const chooseSound = (sound: SoundPreset) => {
+    if (sound === selectedSound) return;
+
+    setSoundPreset(sound);
+    setSelectedSound(sound);
+    activeHandDegreesRef.current = { left: null, right: null };
+    candidateDegreesRef.current = { left: null, right: null };
+    candidateSinceRefs.current = { left: 0, right: 0 };
+    activePadDegreeRef.current = null;
+    setActiveDegrees([]);
+    setStatus(`${sound} sound selected`);
   };
 
   const startPadChord = (degree: ChordDegree) => {
@@ -288,6 +308,19 @@ function Camera() {
             </button>
           ))}
         </div>
+        <label className="key-selector">
+          <span>Sound</span>
+          <select
+            value={selectedSound}
+            onChange={(event) => {
+              if (isSoundPreset(event.target.value)) {
+                chooseSound(event.target.value);
+              }
+            }}
+          >
+            {SOUND_PRESETS.map((sound) => <option key={sound} value={sound}>{sound}</option>)}
+          </select>
+        </label>
       </div>
       <p className="chord-instructions">Chord buttons <span>Press a button or raise 1–5 fingers with either hand</span></p>
       <div className="chord-keys" role="group" aria-label="Play chords">
