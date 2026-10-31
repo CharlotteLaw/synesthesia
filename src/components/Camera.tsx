@@ -17,6 +17,24 @@ import {
 import { startHandTracking } from "../vision/handTracker";
 import type { HandSide, TrackedHand } from "../vision/handTracker";
 
+type ProgressionPreset = {
+  id: string;
+  name: string;
+  degrees: readonly ChordDegree[];
+};
+
+const MAJOR_PROGRESSION_PRESETS: readonly ProgressionPreset[] = [
+  { id: "pop", name: "Pop", degrees: [1, 5, 6, 4] },
+  { id: "emotional", name: "Emotional", degrees: [6, 4, 1, 5] },
+  { id: "classic", name: "Classic", degrees: [1, 6, 4, 5] },
+];
+
+const MINOR_PROGRESSION_PRESETS: readonly ProgressionPreset[] = [
+  { id: "minor-pop", name: "Minor pop", degrees: [1, 7, 6, 7] },
+  { id: "emotional-minor", name: "Emotional minor", degrees: [1, 6, 3, 7] },
+  { id: "minor-lift", name: "Minor lift", degrees: [1, 4, 6, 7] },
+];
+
 function isChordKey(value: string): value is ChordKey {
   return CHORD_KEYS.some((key) => key === value);
 }
@@ -57,6 +75,13 @@ function Camera() {
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
   const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
   const [selectedSound, setSelectedSound] = useState<SoundPreset>("Warm pluck");
+  const [selectedProgressionId, setSelectedProgressionId] = useState("pop");
+  const progressionPresets = selectedMode === "Major"
+    ? MAJOR_PROGRESSION_PRESETS
+    : MINOR_PROGRESSION_PRESETS;
+  const selectedProgression = progressionPresets.find(
+    (progression) => progression.id === selectedProgressionId,
+  ) ?? progressionPresets[0];
 
   const chooseChordSettings = (mode: ChordMode, key: ChordKey) => {
     if (modeRef.current === mode && keyRef.current === key) return;
@@ -350,6 +375,54 @@ function Camera() {
           >
             <span className="chord-name">{getChordName(degree, selectedMode, selectedKey)}</span>
             <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey)} chord</span>
+          </button>
+        ))}
+      </div>
+      <p className="chord-instructions progression-heading">
+        Common progressions
+        <span>Choose a pattern, then play its chords in order</span>
+      </p>
+      <label className="key-selector progression-selector">
+        <span>Pattern</span>
+        <select
+          value={selectedProgression.id}
+          onChange={(event) => setSelectedProgressionId(event.target.value)}
+        >
+          {progressionPresets.map((progression) => (
+            <option key={progression.id} value={progression.id}>
+              {progression.name} · {progression.degrees.join("–")}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="chord-keys progression-keys" role="group" aria-label={`${selectedProgression.name} progression`}>
+        {selectedProgression.degrees.map((degree, index) => (
+          <button
+            key={`${selectedProgression.id}-${index}`}
+            className="chord-key"
+            type="button"
+            aria-label={`Step ${index + 1}: ${getChordName(degree, selectedMode, selectedKey)} chord, ${getChordNumeral(degree, selectedMode, selectedKey)} degree`}
+            aria-pressed={activeDegrees.includes(degree)}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              startPadChord(degree);
+            }}
+            onPointerUp={stopPadChord}
+            onPointerCancel={stopPadChord}
+            onKeyDown={(event) => {
+              if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+                event.preventDefault();
+                startPadChord(degree);
+              }
+            }}
+            onKeyUp={(event) => {
+              if (event.key === " " || event.key === "Enter") stopPadChord();
+            }}
+            onBlur={stopPadChord}
+          >
+            <span className="chord-degree">Step {index + 1}</span>
+            <span className="chord-name">{getChordName(degree, selectedMode, selectedKey)}</span>
+            <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey)}</span>
           </button>
         ))}
       </div>

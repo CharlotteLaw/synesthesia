@@ -7,7 +7,7 @@ export const CHORD_KEYS = [
 ] as const;
 export type ChordKey = (typeof CHORD_KEYS)[number];
 export const CHORD_DEGREES = [1, 2, 3, 4, 5] as const;
-export type ChordDegree = (typeof CHORD_DEGREES)[number];
+export type ChordDegree = (typeof CHORD_DEGREES)[number] | 6 | 7;
 export const SOUND_PRESETS = ["Warm pluck", "Bright synth", "Airy bubbles"] as const;
 export type SoundPreset = (typeof SOUND_PRESETS)[number];
 
@@ -25,6 +25,8 @@ const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
     { numeral: "iii", rootOffset: 4, quality: "m", intervals: [0, 3, 7] },
     { numeral: "IV", rootOffset: 5, quality: "", intervals: [0, 4, 7] },
     { numeral: "V", rootOffset: 7, quality: "", intervals: [0, 4, 7] },
+    { numeral: "vi", rootOffset: 9, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "vii°", rootOffset: 11, quality: "dim", intervals: [0, 3, 6] },
   ],
   Minor: [
     { numeral: "i", rootOffset: 0, quality: "m", intervals: [0, 3, 7] },
@@ -32,6 +34,8 @@ const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
     { numeral: "III", rootOffset: 3, quality: "", intervals: [0, 4, 7] },
     { numeral: "iv", rootOffset: 5, quality: "m", intervals: [0, 3, 7] },
     { numeral: "v", rootOffset: 7, quality: "m", intervals: [0, 3, 7] },
+    { numeral: "VI", rootOffset: 8, quality: "", intervals: [0, 4, 7] },
+    { numeral: "VII", rootOffset: 10, quality: "", intervals: [0, 4, 7] },
   ],
 };
 

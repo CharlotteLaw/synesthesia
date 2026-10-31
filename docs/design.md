@@ -8,6 +8,7 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 - The camera view uses MediaPipe hand landmarks and handedness labels to identify anatomical left and right hands.
 - One through five raised fingers on either hand trigger the first through fifth chord in the current key and scale. Each hand has its own voice, so both hands can hold different chords at the same time; lowering one hand's fingers releases only that hand's chord.
 - On-screen chord pads provide the same play action for pointer and keyboard users.
+- Common four-chord progression presets are available for Major and Minor, with the chords transposed and named for the selected key. Each progression step can be played from its on-screen button.
 - The player offers Warm pluck, Bright synth, and Airy bubbles synthesized Tone.js presets with a shared reverb effect. These are sound-inspired synth timbres, not sampled acoustic instruments.
 - The camera screen has a key selector covering all twelve chromatic keys and Major/Minor scale buttons.
 - Key, Scale, and Sound are presented together as peer settings.
@@ -17,7 +18,7 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 
 - **Finger-based setup:** Key and scale are selected with on-screen controls. Fingers currently play chord degrees only; they do not choose Major/Minor or a chord quality.
 - **Sound selection:** The app has three synthesized sound presets. A realistic acoustic guitar is not available; Warm pluck is only string-like. Presets can be expanded or refined based on listening tests.
-- **Chord vocabulary:** The current five chord pads are diatonic triads for the selected scale. Users cannot choose a separate chord quality such as seventh, suspended, or an alternate voicing.
+- **Chord vocabulary:** Hand gestures and the original five chord pads cover degrees I through V; progression presets can also use degrees VI and VII. Users cannot choose a separate chord quality such as seventh, suspended, or an alternate voicing.
 - **Responsive workspace:** The instrument panel had a 780px maximum width, so it stayed narrow on larger displays.
 
 ## Next milestone: gesture-based music setup

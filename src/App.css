@@ -316,6 +316,19 @@
   margin-top: 6px;
 }
 
+.progression-heading {
+  margin-top: 18px;
+}
+
+.progression-selector {
+  width: min(100%, 320px);
+  margin-top: 8px;
+}
+
+.progression-keys {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .chord-instructions {
   display: flex;
   align-items: baseline;

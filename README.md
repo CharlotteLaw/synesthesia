@@ -8,6 +8,7 @@ Synesthesia is a browser-based hand-controlled chord instrument. It uses a webca
 - One through five raised fingers on either hand play chord degrees I through V in the selected key and Major/Minor scale.
 - Left and right hands have independent voices, so they can play different chords at the same time. Releasing one hand does not release the other.
 - On-screen chord pads also play the chords and support pointer and keyboard input.
+- Common four-chord progression presets show the chord names in the selected key and scale, with a playable button for each step.
 - The instrument screen has Key, Scale, and Sound controls grouped together.
 - The Sound selector offers Warm pluck, Bright synth, and Airy bubbles.
 - The instrument layout uses a wider camera view and workspace on larger screens.
@@ -15,7 +16,7 @@ Synesthesia is a browser-based hand-controlled chord instrument. It uses a webca
 ## Current limitations
 
 - Three synthesized sound styles are available: Warm pluck, Bright synth, and Airy bubbles. These are sound-inspired synth timbres, not sampled guitar or other realistic instruments.
-- The available chords are the five diatonic triads for the selected scale. Chord qualities such as seventh and suspended chords are not selectable.
+- Hand gestures and the original chord pads play degrees I through V. Progression presets can also use degrees VI and VII; chord qualities such as seventh and suspended chords are not selectable.
 - Fingers are currently used to play chords, not to change key, scale, or chord type.
 - Hand tracking should be tested in the target browsers and lighting conditions, especially the left/right labels with the mirrored preview.
 

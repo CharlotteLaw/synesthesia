@@ -20,8 +20,8 @@ export function getRaisedFingerCount(
   if (landmarks.length < 21) return null;
 
   const thumbTip = landmarks[4];
-  const indexMcp = landmarks[5];
   const thumbIp = landmarks[3];
+  const wrist = landmarks[0];
   const palmLength = distanceBetween(landmarks[0], landmarks[9]);
   const extensionThreshold = palmLength * 0.12;
   let fingerCount = 0;
@@ -35,9 +35,10 @@ export function getRaisedFingerCount(
     }
   }
 
-  const thumbTipExtension = distanceBetween(thumbTip, indexMcp);
-  const thumbJointExtension = distanceBetween(thumbIp, indexMcp);
-  if (thumbTipExtension > thumbJointExtension * 1.15) {
+  if (
+    distanceBetween(wrist, thumbTip) >
+    distanceBetween(wrist, thumbIp) + extensionThreshold
+  ) {
     fingerCount += 1;
   }
 
