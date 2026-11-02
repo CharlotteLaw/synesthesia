@@ -3,6 +3,7 @@ import {
   CHORD_DEGREES,
   CHORD_KEYS,
   CHORD_MODES,
+  CHORD_TYPES,
   SOUND_PRESETS,
   getChordName,
   getChordNumeral,
@@ -10,12 +11,14 @@ import {
   releaseChord,
   setSoundPreset,
 } from "../audio/notePlayer";
-import type { ChordDegree, ChordKey, ChordMode, SoundPreset } from "../audio/notePlayer";
+import type { ChordDegree, ChordKey, ChordMode, ChordType, SoundPreset } from "../audio/notePlayer";
 import {
   getRaisedFingerCount,
 } from "../vision/gestures";
 import { startHandTracking } from "../vision/handTracker";
 import type { HandSide, TrackedHand } from "../vision/handTracker";
+
+type SessionMode = "setup" | "play";
 
 type ProgressionPreset = {
   id: string;
@@ -27,12 +30,18 @@ const MAJOR_PROGRESSION_PRESETS: readonly ProgressionPreset[] = [
   { id: "pop", name: "Pop", degrees: [1, 5, 6, 4] },
   { id: "emotional", name: "Emotional", degrees: [6, 4, 1, 5] },
   { id: "classic", name: "Classic", degrees: [1, 6, 4, 5] },
+  { id: "singer-songwriter", name: "Singer-songwriter", degrees: [1, 4, 5, 4] },
+  { id: "dreamy", name: "Dreamy", degrees: [1, 3, 4, 5] },
+  { id: "modern-pop", name: "Modern pop", degrees: [4, 1, 5, 6] },
 ];
 
 const MINOR_PROGRESSION_PRESETS: readonly ProgressionPreset[] = [
   { id: "minor-pop", name: "Minor pop", degrees: [1, 7, 6, 7] },
   { id: "emotional-minor", name: "Emotional minor", degrees: [1, 6, 3, 7] },
   { id: "minor-lift", name: "Minor lift", degrees: [1, 4, 6, 7] },
+  { id: "dark", name: "Dark", degrees: [1, 6, 4, 5] },
+  { id: "cinematic", name: "Cinematic", degrees: [1, 3, 6, 7] },
+  { id: "dorian", name: "Dorian", degrees: [1, 4, 7, 3] },
 ];
 
 function isChordKey(value: string): value is ChordKey {
@@ -67,15 +76,20 @@ function Camera() {
   const activePadDegreeRef = useRef<ChordDegree | null>(null);
   const modeRef = useRef<ChordMode>("Major");
   const keyRef = useRef<ChordKey>("C");
+  const chordTypeRef = useRef<ChordType>("Triad");
+  const sessionModeRef = useRef<SessionMode>("play");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Starting camera...");
   const [trackerReady, setTrackerReady] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
   const [activeDegrees, setActiveDegrees] = useState<ChordDegree[]>([]);
+  const [modeState, setModeState] = useState<SessionMode>("play");
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
   const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
   const [selectedSound, setSelectedSound] = useState<SoundPreset>("Warm pluck");
+  const [selectedChordType, setSelectedChordType] = useState<ChordType>("Triad");
   const [selectedProgressionId, setSelectedProgressionId] = useState("pop");
+  const [playSource, setPlaySource] = useState<"chords" | "progression">("chords");
   const progressionPresets = selectedMode === "Major"
     ? MAJOR_PROGRESSION_PRESETS
     : MINOR_PROGRESSION_PRESETS;
@@ -83,7 +97,7 @@ function Camera() {
     (progression) => progression.id === selectedProgressionId,
   ) ?? progressionPresets[0];
 
-  const chooseChordSettings = (mode: ChordMode, key: ChordKey) => {
+  const chooseChordSettings = useCallback((mode: ChordMode, key: ChordKey) => {
     if (modeRef.current === mode && keyRef.current === key) return;
 
     modeRef.current = mode;
@@ -96,8 +110,83 @@ function Camera() {
     activePadDegreeRef.current = null;
     releaseChord();
     setActiveDegrees([]);
-    setStatus("Show your hand in frame");
-  };
+    setStatus(sessionModeRef.current === "setup"
+      ? `Setup: ${mode} ${key} selected`
+      : "Show your hand in frame");
+  }, []);
+
+  const switchMode = useCallback((nextMode: SessionMode) => {
+    if (nextMode === sessionModeRef.current) return;
+
+    sessionModeRef.current = nextMode;
+    setModeState(nextMode);
+    activeHandDegreesRef.current = { left: null, right: null };
+    candidateDegreesRef.current = { left: null, right: null };
+    candidateSinceRefs.current = { left: 0, right: 0 };
+    activePadDegreeRef.current = null;
+    releaseChord();
+    setActiveDegrees([]);
+    setStatus(nextMode === "setup"
+      ? "Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready."
+      : "Play mode: raise 1–5 fingers with either hand or press a chord button");
+  }, []);
+
+  const advanceKey = useCallback((direction: "next" | "previous") => {
+    const currentIndex = CHORD_KEYS.indexOf(keyRef.current);
+    const nextIndex = direction === "next"
+      ? (currentIndex + 1) % CHORD_KEYS.length
+      : (currentIndex - 1 + CHORD_KEYS.length) % CHORD_KEYS.length;
+    const nextKey = CHORD_KEYS[nextIndex];
+    chooseChordSettings(modeRef.current, nextKey);
+  }, [chooseChordSettings]);
+
+  const chooseChordType = useCallback((chordType: ChordType) => {
+    if (chordTypeRef.current === chordType) return;
+
+    chordTypeRef.current = chordType;
+    setSelectedChordType(chordType);
+    activeHandDegreesRef.current = { left: null, right: null };
+    candidateDegreesRef.current = { left: null, right: null };
+    candidateSinceRefs.current = { left: 0, right: 0 };
+    activePadDegreeRef.current = null;
+    releaseChord();
+    setActiveDegrees([]);
+    setStatus(sessionModeRef.current === "setup"
+      ? `Setup: ${chordType} chords selected.`
+      : `${chordType} chords selected.`);
+  }, []);
+
+  const applySetupGesture = useCallback((detectedDegree: ChordDegree) => {
+    if (detectedDegree === 1) {
+      chooseChordSettings("Major", keyRef.current);
+      setStatus("Setup: Major selected. Switch to Play to start playing chords.");
+      return;
+    }
+
+    if (detectedDegree === 2) {
+      chooseChordSettings("Minor", keyRef.current);
+      setStatus("Setup: Minor selected. Switch to Play to start playing chords.");
+      return;
+    }
+
+    if (detectedDegree === 3) {
+      advanceKey("previous");
+      setStatus(`Setup: key set to ${keyRef.current}.`);
+      return;
+    }
+
+    if (detectedDegree === 4) {
+      advanceKey("next");
+      setStatus(`Setup: key set to ${keyRef.current}.`);
+      return;
+    }
+
+    if (detectedDegree === 5) {
+      const currentIndex = CHORD_TYPES.indexOf(chordTypeRef.current);
+      const nextType = CHORD_TYPES[(currentIndex + 1) % CHORD_TYPES.length];
+      chooseChordType(nextType);
+    }
+  }, [advanceKey, chooseChordSettings, chooseChordType]);
 
   const chooseSound = (sound: SoundPreset) => {
     if (sound === selectedSound) return;
@@ -112,15 +201,33 @@ function Camera() {
     setStatus(`${sound} sound selected`);
   };
 
+  const switchPlaySource = (source: "chords" | "progression") => {
+    if (source === playSource) return;
+
+    releaseChord("pad");
+    activePadDegreeRef.current = null;
+    setActiveDegrees(getActiveChordDegrees(
+      activeHandDegreesRef.current.left,
+      activeHandDegreesRef.current.right,
+      null,
+    ));
+    setPlaySource(source);
+  };
+
   const startPadChord = (degree: ChordDegree) => {
-    holdChord(degree, modeRef.current, keyRef.current, "pad");
+    if (modeState === "setup") {
+      setStatus("Setup mode: switch to Play to trigger chords.");
+      return;
+    }
+
+    holdChord(degree, modeRef.current, keyRef.current, "pad", chordTypeRef.current);
     activePadDegreeRef.current = degree;
     setActiveDegrees(getActiveChordDegrees(
       activeHandDegreesRef.current.left,
       activeHandDegreesRef.current.right,
       activePadDegreeRef.current,
     ));
-    setStatus(`${getChordName(degree, modeRef.current, keyRef.current)} playing`);
+    setStatus(`${getChordName(degree, modeRef.current, keyRef.current, chordTypeRef.current)} playing`);
   };
 
   const stopPadChord = () => {
@@ -131,10 +238,14 @@ function Camera() {
       activeHandDegreesRef.current.right,
       activePadDegreeRef.current,
     ));
+    if (modeState === "setup") {
+      setStatus("Setup mode: choose a key and scale, then switch to Play.");
+      return;
+    }
     const activeSide = activeHandDegreesRef.current.right ? "right" : "left";
     const activeHandDegree = activeHandDegreesRef.current[activeSide];
     setStatus(activeHandDegree
-      ? `${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current)} playing`
+      ? `${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current, chordTypeRef.current)} playing`
       : "Show your hand in frame");
   };
 
@@ -201,6 +312,27 @@ function Camera() {
         candidateSinceRefs.current[side] = timestamp;
       }
 
+      if (sessionModeRef.current === "setup") {
+        if (detectedDegree === null) {
+          if (activeHandDegreesRef.current[side] !== null) {
+            activeHandDegreesRef.current[side] = null;
+            setStatus("Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready.");
+          }
+          continue;
+        }
+
+        if (
+          timestamp - candidateSinceRefs.current[side] < 220 ||
+          activeHandDegreesRef.current[side] === detectedDegree
+        ) {
+          continue;
+        }
+
+        activeHandDegreesRef.current[side] = detectedDegree;
+        applySetupGesture(detectedDegree);
+        continue;
+      }
+
       if (
         timestamp - candidateSinceRefs.current[side] < 220 ||
         activeHandDegreesRef.current[side] === detectedDegree
@@ -210,13 +342,13 @@ function Camera() {
 
       activeHandDegreesRef.current[side] = detectedDegree;
       if (detectedDegree) {
-        holdChord(detectedDegree, modeRef.current, keyRef.current, side);
+        holdChord(detectedDegree, modeRef.current, keyRef.current, side, chordTypeRef.current);
         setActiveDegrees(getActiveChordDegrees(
           activeHandDegreesRef.current.left,
           activeHandDegreesRef.current.right,
           activePadDegreeRef.current,
         ));
-        setStatus(`${side === "left" ? "Left" : "Right"} hand: ${getChordName(detectedDegree, modeRef.current, keyRef.current)} playing`);
+        setStatus(`${side === "left" ? "Left" : "Right"} hand: ${getChordName(detectedDegree, modeRef.current, keyRef.current, chordTypeRef.current)} playing`);
       } else {
         releaseChord(side);
         setActiveDegrees(getActiveChordDegrees(
@@ -226,7 +358,7 @@ function Camera() {
         ));
         if (activeHandDegreesRef.current.left === null && activeHandDegreesRef.current.right === null) {
           setStatus(activePadDegreeRef.current
-            ? `${getChordName(activePadDegreeRef.current, modeRef.current, keyRef.current)} playing`
+            ? `${getChordName(activePadDegreeRef.current, modeRef.current, keyRef.current, chordTypeRef.current)} playing`
             : hasHand
               ? "Hand detected · raise 1–5 fingers with either hand"
               : "Show your hand in frame");
@@ -234,12 +366,12 @@ function Camera() {
           const activeSide = activeHandDegreesRef.current.right ? "right" : "left";
           const activeHandDegree = activeHandDegreesRef.current[activeSide];
           if (activeHandDegree) {
-            setStatus(`${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current)} playing`);
+            setStatus(`${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current, chordTypeRef.current)} playing`);
           }
         }
       }
     }
-  }, []);
+  }, [applySetupGesture]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -306,6 +438,20 @@ function Camera() {
         )}
       </div>
       <div className="chord-settings">
+        <div className="mode-selector session-mode" role="group" aria-label="Session mode">
+          <span className="settings-label">Mode</span>
+          {(["setup", "play"] as const).map((sessionMode) => (
+            <button
+              key={sessionMode}
+              className="mode-option"
+              type="button"
+              aria-pressed={modeState === sessionMode}
+              onClick={() => switchMode(sessionMode)}
+            >
+              {sessionMode === "setup" ? "Setup" : "Play"}
+            </button>
+          ))}
+        </div>
         <label className="key-selector">
           <span>Key</span>
           <select
@@ -333,6 +479,20 @@ function Camera() {
             </button>
           ))}
         </div>
+        <div className="mode-selector" role="group" aria-label="Chord type">
+          <span className="settings-label">Chord type</span>
+          {CHORD_TYPES.map((chordType) => (
+            <button
+              key={chordType}
+              className="mode-option"
+              type="button"
+              aria-pressed={selectedChordType === chordType}
+              onClick={() => chooseChordType(chordType)}
+            >
+              {chordType}
+            </button>
+          ))}
+        </div>
         <label className="key-selector">
           <span>Sound</span>
           <select
@@ -347,85 +507,105 @@ function Camera() {
           </select>
         </label>
       </div>
-      <p className="chord-instructions">Chord buttons <span>Press a button or raise 1–5 fingers with either hand</span></p>
-      <div className="chord-keys" role="group" aria-label="Play chords">
-        {CHORD_DEGREES.map((degree) => (
-          <button
-            key={degree}
-            className="chord-key"
-            type="button"
-            aria-label={`${getChordName(degree, selectedMode, selectedKey)} chord, ${getChordNumeral(degree, selectedMode, selectedKey)} degree`}
-            aria-pressed={activeDegrees.includes(degree)}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              startPadChord(degree);
-            }}
-            onPointerUp={stopPadChord}
-            onPointerCancel={stopPadChord}
-            onKeyDown={(event) => {
-              if ((event.key === " " || event.key === "Enter") && !event.repeat) {
-                event.preventDefault();
-                startPadChord(degree);
-              }
-            }}
-            onKeyUp={(event) => {
-              if (event.key === " " || event.key === "Enter") stopPadChord();
-            }}
-            onBlur={stopPadChord}
-          >
-            <span className="chord-name">{getChordName(degree, selectedMode, selectedKey)}</span>
-            <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey)} chord</span>
-          </button>
-        ))}
-      </div>
-      <p className="chord-instructions progression-heading">
-        Common progressions
-        <span>Choose a pattern, then play its chords in order</span>
-      </p>
-      <label className="key-selector progression-selector">
-        <span>Pattern</span>
-        <select
-          value={selectedProgression.id}
-          onChange={(event) => setSelectedProgressionId(event.target.value)}
+      <div className="mode-selector play-source-selector" role="group" aria-label="Play using">
+        <span className="settings-label">Play using</span>
+        <button
+          className="mode-option"
+          type="button"
+          aria-pressed={playSource === "chords"}
+          onClick={() => switchPlaySource("chords")}
         >
-          {progressionPresets.map((progression) => (
-            <option key={progression.id} value={progression.id}>
-              {progression.name} · {progression.degrees.join("–")}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="chord-keys progression-keys" role="group" aria-label={`${selectedProgression.name} progression`}>
-        {selectedProgression.degrees.map((degree, index) => (
-          <button
-            key={`${selectedProgression.id}-${index}`}
-            className="chord-key"
-            type="button"
-            aria-label={`Step ${index + 1}: ${getChordName(degree, selectedMode, selectedKey)} chord, ${getChordNumeral(degree, selectedMode, selectedKey)} degree`}
-            aria-pressed={activeDegrees.includes(degree)}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              startPadChord(degree);
-            }}
-            onPointerUp={stopPadChord}
-            onPointerCancel={stopPadChord}
-            onKeyDown={(event) => {
-              if ((event.key === " " || event.key === "Enter") && !event.repeat) {
-                event.preventDefault();
-                startPadChord(degree);
-              }
-            }}
-            onKeyUp={(event) => {
-              if (event.key === " " || event.key === "Enter") stopPadChord();
-            }}
-            onBlur={stopPadChord}
-          >
-            <span className="chord-degree">Step {index + 1}</span>
-            <span className="chord-name">{getChordName(degree, selectedMode, selectedKey)}</span>
-            <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey)}</span>
-          </button>
-        ))}
+          Chord pads
+        </button>
+        <button
+          className="mode-option"
+          type="button"
+          aria-pressed={playSource === "progression"}
+          onClick={() => switchPlaySource("progression")}
+        >
+          Progressions
+        </button>
       </div>
+      <p className="chord-instructions">{modeState === "setup" ? "Setup controls" : playSource === "chords" ? "Chord buttons" : "Progression steps"} <span>{modeState === "setup" ? "Keep settings stable before you play" : playSource === "chords" ? "Press a button or raise 1–5 fingers with either hand" : "Choose a pattern, then play its steps one at a time"}</span></p>
+      {playSource === "chords" ? (
+        <div className="chord-keys" role="group" aria-label="Play chords">
+          {CHORD_DEGREES.map((degree) => (
+            <button
+              key={degree}
+              className="chord-key"
+              type="button"
+              aria-label={`${getChordName(degree, selectedMode, selectedKey, selectedChordType)} chord, ${getChordNumeral(degree, selectedMode, selectedKey, selectedChordType)} degree`}
+              aria-pressed={activeDegrees.includes(degree)}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                startPadChord(degree);
+              }}
+              onPointerUp={stopPadChord}
+              onPointerCancel={stopPadChord}
+              onKeyDown={(event) => {
+                if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+                  event.preventDefault();
+                  startPadChord(degree);
+                }
+              }}
+              onKeyUp={(event) => {
+                if (event.key === " " || event.key === "Enter") stopPadChord();
+              }}
+              onBlur={stopPadChord}
+            >
+              <span className="chord-name">{getChordName(degree, selectedMode, selectedKey, selectedChordType)}</span>
+              <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey, selectedChordType)} chord</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <label className="key-selector progression-selector">
+            <span>Pattern</span>
+            <select
+              value={selectedProgression.id}
+              onChange={(event) => setSelectedProgressionId(event.target.value)}
+            >
+              {progressionPresets.map((progression) => (
+                <option key={progression.id} value={progression.id}>
+                  {progression.name} · {progression.degrees.join("–")}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="chord-keys progression-keys" role="group" aria-label={`${selectedProgression.name} progression`}>
+            {selectedProgression.degrees.map((degree, index) => (
+              <button
+                key={`${selectedProgression.id}-${index}`}
+                className="chord-key"
+                type="button"
+                aria-label={`Step ${index + 1}: ${getChordName(degree, selectedMode, selectedKey, selectedChordType)} chord, ${getChordNumeral(degree, selectedMode, selectedKey, selectedChordType)} degree`}
+                aria-pressed={activeDegrees.includes(degree)}
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  startPadChord(degree);
+                }}
+                onPointerUp={stopPadChord}
+                onPointerCancel={stopPadChord}
+                onKeyDown={(event) => {
+                  if ((event.key === " " || event.key === "Enter") && !event.repeat) {
+                    event.preventDefault();
+                    startPadChord(degree);
+                  }
+                }}
+                onKeyUp={(event) => {
+                  if (event.key === " " || event.key === "Enter") stopPadChord();
+                }}
+                onBlur={stopPadChord}
+              >
+                <span className="chord-degree">Step {index + 1}</span>
+                <span className="chord-name">{getChordName(degree, selectedMode, selectedKey, selectedChordType)}</span>
+                <span className="chord-degree">{getChordNumeral(degree, selectedMode, selectedKey, selectedChordType)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <p className={error ? "camera-status camera-error" : "camera-status"} role="status">
         {error || status}
       </p>

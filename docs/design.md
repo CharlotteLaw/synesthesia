@@ -7,18 +7,20 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 - The welcome screen asks before enabling the camera.
 - The camera view uses MediaPipe hand landmarks and handedness labels to identify anatomical left and right hands.
 - One through five raised fingers on either hand trigger the first through fifth chord in the current key and scale. Each hand has its own voice, so both hands can hold different chords at the same time; lowering one hand's fingers releases only that hand's chord.
-- On-screen chord pads provide the same play action for pointer and keyboard users.
-- Common four-chord progression presets are available for Major and Minor, with the chords transposed and named for the selected key. Each progression step can be played from its on-screen button.
+- On-screen chord pads provide the same play action for pointer and keyboard users. Players choose either the chord-pad surface or progression-step surface at a time.
+- Six four-chord progression presets are available for Major and Minor, with the chords transposed and named for the selected key. Each progression step can be played from its on-screen button.
+- Triad, seventh, suspended-second, suspended-fourth, and add-nine chord types can be selected and are used consistently by hand gestures, pads, and progressions.
+- Setup and Play modes separate settings gestures from playing. In Setup, one finger selects Major, two selects Minor, three/four step backward/forward through keys, and five cycles chord types.
 - The player offers Warm pluck, Bright synth, and Airy bubbles synthesized Tone.js presets with a shared reverb effect. These are sound-inspired synth timbres, not sampled acoustic instruments.
 - The camera screen has a key selector covering all twelve chromatic keys and Major/Minor scale buttons.
 - Key, Scale, and Sound are presented together as peer settings.
-- Chord names, Roman numerals, and triad intervals are generated for the selected key and scale.
+- Chord names, Roman numerals, and intervals are generated for the selected key, scale, and chord type.
 
 ## What is missing or limited
 
-- **Finger-based setup:** Key and scale are selected with on-screen controls. Fingers currently play chord degrees only; they do not choose Major/Minor or a chord quality.
+- **Gesture testing:** Setup gestures are implemented, but their mapping still needs testing with players for clarity and reliability.
 - **Sound selection:** The app has three synthesized sound presets. A realistic acoustic guitar is not available; Warm pluck is only string-like. Presets can be expanded or refined based on listening tests.
-- **Chord vocabulary:** Hand gestures and the original five chord pads cover degrees I through V; progression presets can also use degrees VI and VII. Users cannot choose a separate chord quality such as seventh, suspended, or an alternate voicing.
+- **Chord vocabulary:** The app supports triad, seventh, sus2, sus4, and add9 voicings. Hand gestures and chord pads cover degrees I through V; progression presets can also use degrees VI and VII.
 - **Responsive workspace:** The instrument panel had a 780px maximum width, so it stayed narrow on larger displays.
 
 ## Next milestone: gesture-based music setup
@@ -27,15 +29,16 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 
 Let a player configure their musical choices using their hand, then play without accidentally changing those choices mid-performance.
 
-### Proposed interaction
+### Current interaction
 
 Keep the current five-finger chord-playing interaction as the default. Add an explicit **Setup / Play** control:
 
-1. In **Setup**, show a clear prompt that hand gestures change settings rather than play notes.
-2. Use a simple, visible gesture mapping to select Major or Minor and the available chord type. The exact mapping should be tested with players before it is treated as final; it must not conflict with the existing 1–5 chord-playing gestures.
-3. Show the selected key, scale, and chord type in the interface and provide immediate visual confirmation after a gesture.
-4. Return to **Play** mode to use one through five fingers for chord degrees, with the on-screen pads remaining available.
-5. Keep existing key and scale controls usable as an accessible fallback.
+1. In **Setup**, hand gestures change settings rather than play notes.
+2. One finger selects Major, two selects Minor, three/four step backward/forward through keys, and five cycles the chord type.
+3. The selected key, scale, and chord type are visible, and status text confirms changes.
+4. Return to **Play** mode to use one through five fingers for chord degrees.
+5. Key, scale, and chord type controls remain available as an accessible fallback.
+6. Choose either the chord-pad surface or the progression-step surface so those two pad-based play surfaces are not displayed together.
 
 ### Acceptance checks
 
@@ -69,6 +72,6 @@ The instrument workspace now uses more of the available screen width, with a lar
 
 ## Product decisions to confirm
 
-- Which chord types should be available beyond the current scale-derived triads?
-- Which gesture mapping feels easiest for selecting scale and chord type? Test the proposed Setup / Play separation before locking the mapping.
+- Does the current gesture mapping feel easy to learn for selecting scale, key, and chord type?
+- Are the five chord types and six progression presets per scale useful, or should the available palette be adjusted?
 - Should the acoustic-inspired preset use a synthesized pluck first, or wait for a guitar sample/library?

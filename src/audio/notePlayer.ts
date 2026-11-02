@@ -10,12 +10,14 @@ export const CHORD_DEGREES = [1, 2, 3, 4, 5] as const;
 export type ChordDegree = (typeof CHORD_DEGREES)[number] | 6 | 7;
 export const SOUND_PRESETS = ["Warm pluck", "Bright synth", "Airy bubbles"] as const;
 export type SoundPreset = (typeof SOUND_PRESETS)[number];
+export const CHORD_TYPES = ["Triad", "7th", "Sus2", "Sus4", "Add9"] as const;
+export type ChordType = (typeof CHORD_TYPES)[number];
 
 type ChordDefinition = {
   numeral: string;
   rootOffset: number;
   quality: "" | "m" | "dim";
-  intervals: readonly [number, number, number];
+  intervals: readonly number[];
 };
 
 const CHORDS: Record<ChordMode, readonly ChordDefinition[]> = {
@@ -48,20 +50,65 @@ function prefersFlatNotation(key: ChordKey, mode: ChordMode): boolean {
   return FLAT_KEYS.includes(key) || (mode === "Minor" && FLAT_MINOR_KEYS.includes(key));
 }
 
-function getChord(degree: ChordDegree, mode: ChordMode, key: ChordKey): {
+function getChord(
+  degree: ChordDegree,
+  mode: ChordMode,
+  key: ChordKey,
+  chordType: ChordType,
+): {
   definition: ChordDefinition;
   rootMidi: number;
   rootName: string;
+  intervals: readonly number[];
+  qualityLabel: string;
 } {
   const definition = CHORDS[mode][degree - 1];
   const keyIndex = CHORD_KEYS.indexOf(key);
   const rootIndex = keyIndex + definition.rootOffset;
   const noteNames = prefersFlatNotation(key, mode) ? FLAT_NOTE_NAMES : NOTE_NAMES;
+  let intervals: readonly number[];
+  let qualityLabel: string = definition.quality;
+
+  switch (chordType) {
+    case "Triad":
+      intervals = definition.intervals;
+      break;
+    case "7th": {
+      const seventh = definition.quality === "dim" || (mode === "Major" && degree === 5)
+        ? 10
+        : definition.quality === ""
+          ? 11
+          : 10;
+      intervals = [...definition.intervals, seventh];
+      qualityLabel = definition.quality === "dim"
+        ? "m7b5"
+        : seventh === 11
+          ? "maj7"
+          : definition.quality === "m"
+            ? "m7"
+            : "7";
+      break;
+    }
+    case "Sus2":
+      intervals = [0, 2, 7];
+      qualityLabel = "sus2";
+      break;
+    case "Sus4":
+      intervals = [0, 5, 7];
+      qualityLabel = "sus4";
+      break;
+    case "Add9":
+      intervals = [...definition.intervals, 14];
+      qualityLabel = `${definition.quality === "m" ? "m" : definition.quality === "dim" ? "dim" : ""}(add9)`;
+      break;
+  }
 
   return {
     definition,
     rootMidi: 48 + rootIndex,
     rootName: noteNames[rootIndex % noteNames.length],
+    intervals,
+    qualityLabel,
   };
 }
 
@@ -162,13 +209,24 @@ export function setSoundPreset(preset: SoundPreset): void {
   }
 }
 
-export function getChordName(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
-  const { definition, rootName } = getChord(degree, mode, key);
-  return `${rootName}${definition.quality}`;
+export function getChordName(
+  degree: ChordDegree,
+  mode: ChordMode,
+  key: ChordKey,
+  chordType: ChordType = "Triad",
+): string {
+  const { rootName, qualityLabel } = getChord(degree, mode, key, chordType);
+  return `${rootName}${qualityLabel}`;
 }
 
-export function getChordNumeral(degree: ChordDegree, mode: ChordMode, key: ChordKey): string {
-  return getChord(degree, mode, key).definition.numeral;
+export function getChordNumeral(
+  degree: ChordDegree,
+  mode: ChordMode,
+  key: ChordKey,
+  chordType: ChordType = "Triad",
+): string {
+  const { definition } = getChord(degree, mode, key, chordType);
+  return definition.numeral;
 }
 
 export function holdChord(
@@ -176,19 +234,23 @@ export function holdChord(
   mode: ChordMode,
   key: ChordKey,
   voice: ChordVoice = "pad",
+  chordType: ChordType = "Triad",
 ): void {
   const synthInstance = ensureSynth(voice);
   if (!synthInstance) {
     return;
   }
 
-  const chordKey = `${key}:${mode}:${degree}`;
+  const chordKey = `${key}:${mode}:${degree}:${chordType}`;
   if (heldChords.get(voice)?.key === chordKey) return;
   releaseChord(voice);
 
-  const { definition, rootMidi } = getChord(degree, mode, key);
+  const { rootMidi, intervals } = getChord(degree, mode, key, chordType);
   const preferFlats = prefersFlatNotation(key, mode);
-  const notes = [...definition.intervals.map((interval) => midiToNote(rootMidi + interval, preferFlats)), midiToNote(rootMidi + 12, preferFlats)];
+  const notes = [
+    ...intervals.map((interval) => midiToNote(rootMidi + interval, preferFlats)),
+    midiToNote(rootMidi + 12, preferFlats),
+  ];
   synthInstance.triggerAttack([...notes]);
   heldChords.set(voice, { key: chordKey, notes });
 }

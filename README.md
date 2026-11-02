@@ -7,31 +7,25 @@ Synesthesia is a browser-based hand-controlled chord instrument. It uses a webca
 - The app asks before turning on the camera.
 - One through five raised fingers on either hand play chord degrees I through V in the selected key and Major/Minor scale.
 - Left and right hands have independent voices, so they can play different chords at the same time. Releasing one hand does not release the other.
-- On-screen chord pads also play the chords and support pointer and keyboard input.
-- Common four-chord progression presets show the chord names in the selected key and scale, with a playable button for each step.
-- The instrument screen has Key, Scale, and Sound controls grouped together.
+- On-screen chord pads support pointer and keyboard input. Choose either chord pads or progression steps as the pad-playing surface; they are not shown together.
+- Six four-chord progression presets are available for each scale, with playable buttons for individual steps.
+- Triad, 7th, Sus2, Sus4, and Add9 chord types are available across hand gestures, pads, and progressions.
+- Setup mode lets gestures select Major/Minor, step through keys, and cycle chord types without playing notes. Play mode retains the 1–5 finger chord controls.
+- The instrument screen has Key, Scale, Chord type, and Sound controls grouped together.
 - The Sound selector offers Warm pluck, Bright synth, and Airy bubbles.
 - The instrument layout uses a wider camera view and workspace on larger screens.
 
 ## Current limitations
 
 - Three synthesized sound styles are available: Warm pluck, Bright synth, and Airy bubbles. These are sound-inspired synth timbres, not sampled guitar or other realistic instruments.
-- Hand gestures and the original chord pads play degrees I through V. Progression presets can also use degrees VI and VII; chord qualities such as seventh and suspended chords are not selectable.
-- Fingers are currently used to play chords, not to change key, scale, or chord type.
+- Hand gestures and chord pads play degrees I through V. Progression presets can also use degrees VI and VII.
 - Hand tracking should be tested in the target browsers and lighting conditions, especially the left/right labels with the mirrored preview.
 
 ## What happens next
 
-The next milestone is **gesture-based music setup**:
+The next step is player testing: check whether the setup gestures and chord labels are easy to understand, and whether the expanded chord types and progression choices sound useful on real devices.
 
-1. Add explicit **Setup** and **Play** modes so settings gestures cannot accidentally trigger chords.
-2. Let the player choose Major/Minor and a chord type in Setup, with visible confirmation.
-3. Keep the existing five-finger chord playing in Play, independently for each hand.
-4. Keep on-screen controls as an accessible fallback.
-
-The sound palette is implemented. A natural next step is to test the three presets on real devices, then build Setup / Play mode for hand-driven key, scale, and chord-type selection.
-
-See the [design doc](./docs/design.md) for the fuller product status, proposed interaction, and acceptance checks. The exact Setup gesture mapping and the chord types to support still need product decisions and player testing.
+See the [design doc](./docs/design.md) for the fuller product status, interaction, and acceptance checks. The gesture mapping and expanded chord palette should be validated with players.
 
 ## Run locally
 
