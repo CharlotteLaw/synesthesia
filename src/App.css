@@ -285,6 +285,19 @@
   background: rgba(255, 255, 255, 0.38);
 }
 
+.gesture-guide {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(111, 71, 118, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #6b536b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .settings-label {
   grid-column: 1 / -1;
   padding: 0 2px;

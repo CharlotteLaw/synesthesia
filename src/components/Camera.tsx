@@ -96,6 +96,7 @@ function Camera() {
   const selectedProgression = progressionPresets.find(
     (progression) => progression.id === selectedProgressionId,
   ) ?? progressionPresets[0];
+  const setupPrompt = "Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready.";
 
   const chooseChordSettings = useCallback((mode: ChordMode, key: ChordKey) => {
     if (modeRef.current === mode && keyRef.current === key) return;
@@ -126,10 +127,8 @@ function Camera() {
     activePadDegreeRef.current = null;
     releaseChord();
     setActiveDegrees([]);
-    setStatus(nextMode === "setup"
-      ? "Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready."
-      : "Play mode: raise 1–5 fingers with either hand or press a chord button");
-  }, []);
+    setStatus(nextMode === "setup" ? setupPrompt : "Play mode: raise 1–5 fingers with either hand or press a chord button");
+  }, [setupPrompt]);
 
   const advanceKey = useCallback((direction: "next" | "previous") => {
     const currentIndex = CHORD_KEYS.indexOf(keyRef.current);
@@ -316,7 +315,10 @@ function Camera() {
         if (detectedDegree === null) {
           if (activeHandDegreesRef.current[side] !== null) {
             activeHandDegreesRef.current[side] = null;
-            setStatus("Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready.");
+            setStatus(setupPrompt);
+          }
+          if (hasHand && activeHandDegreesRef.current.left === null && activeHandDegreesRef.current.right === null) {
+            setStatus(setupPrompt);
           }
           continue;
         }
@@ -371,7 +373,7 @@ function Camera() {
         }
       }
     }
-  }, [applySetupGesture]);
+  }, [applySetupGesture, setupPrompt]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -452,6 +454,11 @@ function Camera() {
             </button>
           ))}
         </div>
+        {modeState === "setup" && (
+          <p className="gesture-guide" aria-live="polite">
+            Gesture guide: 1 = Major · 2 = Minor · 3/4 = previous/next key · 5 = next chord type
+          </p>
+        )}
         <label className="key-selector">
           <span>Key</span>
           <select
