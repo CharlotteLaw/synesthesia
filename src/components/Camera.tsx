@@ -98,6 +98,12 @@ function Camera() {
   ) ?? progressionPresets[0];
   const setupPrompt = "Setup mode: 1 finger = Major, 2 = Minor, 3/4 = previous/next key, 5 = next chord type. Switch to Play when ready.";
 
+  const setStatusMessage = useCallback((nextStatus: string) => {
+    setStatus((currentStatus) => (
+      currentStatus === nextStatus ? currentStatus : nextStatus
+    ));
+  }, []);
+
   const chooseChordSettings = useCallback((mode: ChordMode, key: ChordKey) => {
     if (modeRef.current === mode && keyRef.current === key) return;
 
@@ -111,10 +117,10 @@ function Camera() {
     activePadDegreeRef.current = null;
     releaseChord();
     setActiveDegrees([]);
-    setStatus(sessionModeRef.current === "setup"
+    setStatusMessage(sessionModeRef.current === "setup"
       ? `Setup: ${mode} ${key} selected`
       : "Show your hand in frame");
-  }, []);
+  }, [setStatusMessage]);
 
   const switchMode = useCallback((nextMode: SessionMode) => {
     if (nextMode === sessionModeRef.current) return;
@@ -127,8 +133,10 @@ function Camera() {
     activePadDegreeRef.current = null;
     releaseChord();
     setActiveDegrees([]);
-    setStatus(nextMode === "setup" ? setupPrompt : "Play mode: raise 1–5 fingers with either hand or press a chord button");
-  }, [setupPrompt]);
+    setStatusMessage(nextMode === "setup"
+      ? setupPrompt
+      : "Play mode: raise 1–5 fingers with either hand or press a chord button");
+  }, [setStatusMessage, setupPrompt]);
 
   const advanceKey = useCallback((direction: "next" | "previous") => {
     const currentIndex = CHORD_KEYS.indexOf(keyRef.current);
@@ -150,10 +158,10 @@ function Camera() {
     activePadDegreeRef.current = null;
     releaseChord();
     setActiveDegrees([]);
-    setStatus(sessionModeRef.current === "setup"
+    setStatusMessage(sessionModeRef.current === "setup"
       ? `Setup: ${chordType} chords selected.`
       : `${chordType} chords selected.`);
-  }, []);
+  }, [setStatusMessage]);
 
   const applySetupGesture = useCallback((detectedDegree: ChordDegree) => {
     if (detectedDegree === 1) {
@@ -315,10 +323,10 @@ function Camera() {
         if (detectedDegree === null) {
           if (activeHandDegreesRef.current[side] !== null) {
             activeHandDegreesRef.current[side] = null;
-            setStatus(setupPrompt);
+            setStatusMessage(setupPrompt);
           }
           if (hasHand && activeHandDegreesRef.current.left === null && activeHandDegreesRef.current.right === null) {
-            setStatus(setupPrompt);
+            setStatusMessage(setupPrompt);
           }
           continue;
         }
@@ -373,7 +381,7 @@ function Camera() {
         }
       }
     }
-  }, [applySetupGesture, setupPrompt]);
+  }, [applySetupGesture, setStatusMessage, setupPrompt]);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
