@@ -82,6 +82,7 @@ function Camera() {
   const [status, setStatus] = useState("Starting camera...");
   const [trackerReady, setTrackerReady] = useState(false);
   const [handDetected, setHandDetected] = useState(false);
+  const [detectedFingerCount, setDetectedFingerCount] = useState<number | null>(null);
   const [activeDegrees, setActiveDegrees] = useState<ChordDegree[]>([]);
   const [modeState, setModeState] = useState<SessionMode>("play");
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
@@ -305,6 +306,12 @@ function Camera() {
 
     const hasHand = hands.length > 0;
     setHandDetected(hasHand);
+    const visibleFingerCount = hasHand
+      ? Math.max(...hands.map((hand) => getRaisedFingerCount(hand.landmarks) ?? 0))
+      : null;
+    setDetectedFingerCount((currentCount) => (
+      currentCount === visibleFingerCount ? currentCount : visibleFingerCount
+    ));
 
     for (const side of ["left", "right"] as const) {
       const hand = hands.find((trackedHand) => trackedHand.side === side);
@@ -443,12 +450,16 @@ function Camera() {
       <div className="camera-view" ref={cameraViewRef}>
         <video ref={videoRef} autoPlay playsInline muted />
         <canvas ref={canvasRef} aria-hidden="true" />
-        {trackerReady && !handDetected && !error && (
-          <div className="camera-hint">Show your hand in frame</div>
+        {trackerReady && !error && (
+          <div className="camera-hint">
+            {handDetected
+              ? `${detectedFingerCount ?? 0} fingers detected`
+              : "Show your hand in frame"}
+          </div>
         )}
       </div>
-      <div className="chord-settings">
-        <div className="mode-selector session-mode" role="group" aria-label="Session mode">
+      <div className="chord-settings" role="group" aria-label="Instrument settings">
+        <div className="mode-selector setting-card session-mode" role="group" aria-label="Session mode">
           <span className="settings-label">Mode</span>
           {(["setup", "play"] as const).map((sessionMode) => (
             <button
@@ -467,7 +478,7 @@ function Camera() {
             Gesture guide: 1 = Major · 2 = Minor · 3/4 = previous/next key · 5 = next chord type
           </p>
         )}
-        <label className="key-selector">
+        <label className="key-selector setting-card">
           <span>Key</span>
           <select
             value={selectedKey}
@@ -480,7 +491,7 @@ function Camera() {
             {CHORD_KEYS.map((key) => <option key={key} value={key}>{key}</option>)}
           </select>
         </label>
-        <div className="mode-selector" role="group" aria-label="Scale mode">
+        <div className="mode-selector setting-card" role="group" aria-label="Scale mode">
           <span className="settings-label">Scale</span>
           {CHORD_MODES.map((mode) => (
             <button
@@ -494,7 +505,7 @@ function Camera() {
             </button>
           ))}
         </div>
-        <div className="mode-selector" role="group" aria-label="Chord type">
+        <div className="mode-selector setting-card chord-type-setting" role="group" aria-label="Chord type">
           <span className="settings-label">Chord type</span>
           {CHORD_TYPES.map((chordType) => (
             <button
@@ -508,7 +519,7 @@ function Camera() {
             </button>
           ))}
         </div>
-        <label className="key-selector">
+        <label className="key-selector setting-card">
           <span>Sound</span>
           <select
             value={selectedSound}
