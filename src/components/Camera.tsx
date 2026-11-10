@@ -19,6 +19,8 @@ import { startHandTracking } from "../vision/handTracker";
 import type { HandSide, TrackedHand } from "../vision/handTracker";
 
 type SessionMode = "setup" | "play";
+const GESTURE_SAMPLE_WINDOW = 5;
+const GESTURE_SAMPLE_THRESHOLD = 3;
 
 type ProgressionPreset = {
   id: string;
@@ -71,6 +73,10 @@ function Camera() {
   const candidateDegreesRef = useRef<Record<HandSide, ChordDegree | null>>({
     left: null,
     right: null,
+  });
+  const gestureHistoryRef = useRef<Record<HandSide, Array<number | null>>>({
+    left: [],
+    right: [],
   });
   const candidateSinceRefs = useRef<Record<HandSide, number>>({ left: 0, right: 0 });
   const activePadDegreeRef = useRef<ChordDegree | null>(null);
@@ -315,7 +321,21 @@ function Camera() {
 
     for (const side of ["left", "right"] as const) {
       const hand = hands.find((trackedHand) => trackedHand.side === side);
-      const detectedCount = hand ? getRaisedFingerCount(hand.landmarks) : null;
+      const sampledCount = hand ? getRaisedFingerCount(hand.landmarks) : null;
+      const history = gestureHistoryRef.current[side];
+      history.push(sampledCount);
+      if (history.length > GESTURE_SAMPLE_WINDOW) history.shift();
+
+      const countVotes = new Map<number | null, number>();
+      for (const count of history) {
+        countVotes.set(count, (countVotes.get(count) ?? 0) + 1);
+      }
+      const consensus = [...countVotes].find(
+        ([, votes]) => votes >= GESTURE_SAMPLE_THRESHOLD,
+      );
+      const detectedCount = consensus
+        ? consensus[0]
+        : activeHandDegreesRef.current[side];
       const detectedDegree =
         detectedCount && detectedCount <= CHORD_DEGREES.length
           ? detectedCount as ChordDegree
