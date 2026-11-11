@@ -12,6 +12,7 @@ Synesthesia is a browser-based hand-controlled chord instrument.
 - Triad, seventh, suspended-second, suspended-fourth, and add-nine chord types can be selected and are used consistently by hand gestures, pads, and progressions.
 - Setup and Play modes separate settings gestures from playing. In Setup, one finger selects Major, two selects Minor, three/four step backward/forward through keys, and five cycles chord types.
 - The player offers Warm pluck, Bright synth, and Airy bubbles synthesized Tone.js presets with a shared reverb effect. These are sound-inspired synth timbres, not sampled acoustic instruments.
+- An optional metronome plays a click with an accented downbeat; the tempo is adjustable from 40 to 240 BPM.
 - The camera screen has a key selector covering all twelve chromatic keys and Major/Minor scale buttons.
 - Key, Scale, and Sound are presented together as peer settings.
 - Chord names, Roman numerals, and intervals are generated for the selected key, scale, and chord type.

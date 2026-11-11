@@ -13,6 +13,7 @@ Synesthesia is a browser-based hand-controlled chord instrument. It uses a webca
 - Setup mode lets gestures select Major/Minor, step through keys, and cycle chord types without playing notes. Play mode retains the 1–5 finger chord controls.
 - The instrument screen has Key, Scale, Chord type, and Sound controls grouped together.
 - The Sound selector offers Warm pluck, Bright synth, and Airy bubbles.
+- An optional metronome provides an accented four-beat bar and an adjustable tempo from 40 to 240 BPM.
 - The instrument layout uses a wider camera view and workspace on larger screens.
 
 ## Current limitations
@@ -32,6 +33,12 @@ See the [design doc](./docs/design.md) for the fuller product status, interactio
 ```sh
 npm install
 npm run dev
+```
+
+Run the gesture regression tests with:
+
+```sh
+npm test
 ```
 
 Camera access requires browser permission and a secure context (localhost is supported).

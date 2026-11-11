@@ -4,12 +4,18 @@ import {
   CHORD_KEYS,
   CHORD_MODES,
   CHORD_TYPES,
+  DEFAULT_METRONOME_BPM,
+  METRONOME_MAX_BPM,
+  METRONOME_MIN_BPM,
   SOUND_PRESETS,
   getChordName,
   getChordNumeral,
   holdChord,
   releaseChord,
+  setMetronomeTempo,
   setSoundPreset,
+  startMetronome,
+  stopMetronome,
 } from "../audio/notePlayer";
 import type { ChordDegree, ChordKey, ChordMode, ChordType, SoundPreset } from "../audio/notePlayer";
 import {
@@ -95,6 +101,8 @@ function Camera() {
   const [selectedKey, setSelectedKey] = useState<ChordKey>("C");
   const [selectedSound, setSelectedSound] = useState<SoundPreset>("Warm pluck");
   const [selectedChordType, setSelectedChordType] = useState<ChordType>("Triad");
+  const [metronomeEnabled, setMetronomeEnabled] = useState(false);
+  const [metronomeTempo, setMetronomeTempoState] = useState(DEFAULT_METRONOME_BPM);
   const [selectedProgressionId, setSelectedProgressionId] = useState("pop");
   const [playSource, setPlaySource] = useState<"chords" | "progression">("chords");
   const progressionPresets = selectedMode === "Major"
@@ -213,6 +221,39 @@ function Camera() {
     activePadDegreeRef.current = null;
     setActiveDegrees([]);
     setStatus(`${sound} sound selected`);
+  };
+
+  const changeMetronomeTempo = (tempo: number) => {
+    if (
+      !Number.isInteger(tempo) ||
+      tempo < METRONOME_MIN_BPM ||
+      tempo > METRONOME_MAX_BPM
+    ) {
+      return;
+    }
+
+    setMetronomeTempoState(tempo);
+    setMetronomeTempo(tempo);
+  };
+
+  const toggleMetronome = async () => {
+    if (metronomeEnabled) {
+      stopMetronome();
+      setMetronomeEnabled(false);
+      setStatus("Metronome stopped");
+      return;
+    }
+
+    try {
+      await startMetronome(metronomeTempo);
+      setMetronomeEnabled(true);
+      setStatus(`Metronome playing at ${metronomeTempo} BPM`);
+    } catch (err) {
+      console.error("Could not start metronome:", err);
+      setStatus(`Metronome unavailable: ${
+        err instanceof Error ? err.message : "Could not start audio."
+      }`);
+    }
   };
 
   const switchPlaySource = (source: "chords" | "progression") => {
@@ -459,6 +500,7 @@ function Camera() {
       active = false;
       stopTracking?.();
       releaseChord();
+      stopMetronome();
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
@@ -552,6 +594,40 @@ function Camera() {
             {SOUND_PRESETS.map((sound) => <option key={sound} value={sound}>{sound}</option>)}
           </select>
         </label>
+        <div className="metronome-setting setting-card" role="group" aria-label="Metronome">
+          <span className="settings-label">Metronome</span>
+          <label className="tempo-control">
+            <span>Tempo</span>
+            <input
+              type="number"
+              min={METRONOME_MIN_BPM}
+              max={METRONOME_MAX_BPM}
+              step="1"
+              value={metronomeTempo}
+              aria-label="Metronome tempo in beats per minute"
+              onChange={(event) => changeMetronomeTempo(Number(event.target.value))}
+            />
+            <span>BPM</span>
+          </label>
+          <input
+            className="tempo-slider"
+            type="range"
+            min={METRONOME_MIN_BPM}
+            max={METRONOME_MAX_BPM}
+            step="1"
+            value={metronomeTempo}
+            aria-label="Adjust metronome tempo"
+            onChange={(event) => changeMetronomeTempo(Number(event.target.value))}
+          />
+          <button
+            className="mode-option metronome-toggle"
+            type="button"
+            aria-pressed={metronomeEnabled}
+            onClick={() => void toggleMetronome()}
+          >
+            {metronomeEnabled ? "Stop" : "Start"}
+          </button>
+        </div>
       </div>
       <div className="mode-selector play-source-selector" role="group" aria-label="Play using">
         <span className="settings-label">Play using</span>

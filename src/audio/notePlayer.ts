@@ -12,6 +12,9 @@ export const SOUND_PRESETS = ["Warm pluck", "Bright synth", "Airy bubbles"] as c
 export type SoundPreset = (typeof SOUND_PRESETS)[number];
 export const CHORD_TYPES = ["Triad", "7th", "Sus2", "Sus4", "Add9"] as const;
 export type ChordType = (typeof CHORD_TYPES)[number];
+export const METRONOME_MIN_BPM = 40;
+export const METRONOME_MAX_BPM = 240;
+export const DEFAULT_METRONOME_BPM = 120;
 
 type ChordDefinition = {
   numeral: string;
@@ -125,6 +128,9 @@ let reverb: Tone.Reverb | null = null;
 const synths: Partial<Record<ChordVoice, Tone.PolySynth<Tone.Synth>>> = {};
 const heldChords = new Map<ChordVoice, { key: string; notes: readonly string[] }>();
 let selectedSound: SoundPreset = "Warm pluck";
+let metronomeSynth: Tone.Synth | null = null;
+let metronomeLoop: Tone.Loop | null = null;
+let metronomeBeat = 0;
 
 function applySoundPreset(synth: Tone.PolySynth<Tone.Synth>, preset: SoundPreset): void {
   switch (preset) {
@@ -196,6 +202,62 @@ export async function enableAudio(): Promise<void> {
 
   await Tone.start();
   ensureSynth("pad");
+}
+
+export async function startMetronome(bpm: number): Promise<void> {
+  if (!Number.isInteger(bpm) || bpm < METRONOME_MIN_BPM || bpm > METRONOME_MAX_BPM) {
+    throw new RangeError(
+      `Metronome tempo must be between ${METRONOME_MIN_BPM} and ${METRONOME_MAX_BPM} BPM.`,
+    );
+  }
+  if (!canUseAudio()) {
+    throw new Error("Audio is not supported in this browser.");
+  }
+
+  await Tone.start();
+  Tone.Transport.bpm.value = bpm;
+  if (!metronomeSynth) {
+    metronomeSynth = new Tone.Synth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.01 },
+    }).toDestination();
+    metronomeSynth.volume.value = -12;
+  }
+  if (!metronomeLoop) {
+    metronomeLoop = new Tone.Loop((time) => {
+      const isDownbeat = metronomeBeat % 4 === 0;
+      metronomeSynth?.triggerAttackRelease("C6", "32n", time, isDownbeat ? 0.9 : 0.55);
+      metronomeBeat += 1;
+    }, "4n");
+  }
+
+  if (metronomeLoop.state !== "started") {
+    metronomeBeat = 0;
+    metronomeLoop.start(0);
+  }
+  if (Tone.Transport.state !== "started") {
+    await Tone.Transport.start();
+  }
+}
+
+export function setMetronomeTempo(bpm: number): void {
+  if (!Number.isInteger(bpm) || bpm < METRONOME_MIN_BPM || bpm > METRONOME_MAX_BPM) {
+    throw new RangeError(
+      `Metronome tempo must be between ${METRONOME_MIN_BPM} and ${METRONOME_MAX_BPM} BPM.`,
+    );
+  }
+
+  Tone.Transport.bpm.value = bpm;
+}
+
+export function stopMetronome(): void {
+  if (metronomeLoop?.state === "started") {
+    metronomeLoop.stop();
+  }
+  if (Tone.Transport.state === "started") {
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+  }
 }
 
 export function setSoundPreset(preset: SoundPreset): void {
