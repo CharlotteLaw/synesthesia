@@ -22,6 +22,9 @@ export async function startHandTracking(
     baseOptions: { modelAssetPath: MODEL_URL },
     runningMode: "VIDEO",
     numHands: 2,
+    minHandDetectionConfidence: 0.8,
+    minHandPresenceConfidence: 0.8,
+    minTrackingConfidence: 0.8,
   });
 
   let active = true;

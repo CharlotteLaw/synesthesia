@@ -92,9 +92,6 @@ function Camera() {
   const sessionModeRef = useRef<SessionMode>("play");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("Starting camera...");
-  const [trackerReady, setTrackerReady] = useState(false);
-  const [handDetected, setHandDetected] = useState(false);
-  const [detectedFingerCount, setDetectedFingerCount] = useState<number | null>(null);
   const [activeDegrees, setActiveDegrees] = useState<ChordDegree[]>([]);
   const [modeState, setModeState] = useState<SessionMode>("play");
   const [selectedMode, setSelectedMode] = useState<ChordMode>("Major");
@@ -134,7 +131,7 @@ function Camera() {
     setActiveDegrees([]);
     setStatusMessage(sessionModeRef.current === "setup"
       ? `Setup: ${mode} ${key} selected`
-      : "Show your hand in frame");
+      : "Camera ready");
   }, [setStatusMessage]);
 
   const switchMode = useCallback((nextMode: SessionMode) => {
@@ -301,7 +298,7 @@ function Camera() {
     const activeHandDegree = activeHandDegreesRef.current[activeSide];
     setStatus(activeHandDegree
       ? `${activeSide === "left" ? "Left" : "Right"} hand: ${getChordName(activeHandDegree, modeRef.current, keyRef.current, chordTypeRef.current)} playing`
-      : "Show your hand in frame");
+      : "Waiting for a hand");
   };
 
   const drawLandmarks = useCallback((hands: TrackedHand[], timestamp: number) => {
@@ -352,13 +349,6 @@ function Camera() {
     }
 
     const hasHand = hands.length > 0;
-    setHandDetected(hasHand);
-    const visibleFingerCount = hasHand
-      ? Math.max(...hands.map((hand) => getRaisedFingerCount(hand.landmarks) ?? 0))
-      : null;
-    setDetectedFingerCount((currentCount) => (
-      currentCount === visibleFingerCount ? currentCount : visibleFingerCount
-    ));
 
     for (const side of ["left", "right"] as const) {
       const hand = hands.find((trackedHand) => trackedHand.side === side);
@@ -439,7 +429,7 @@ function Camera() {
             ? `${getChordName(activePadDegreeRef.current, modeRef.current, keyRef.current, chordTypeRef.current)} playing`
             : hasHand
               ? "Hand detected · raise 1–5 fingers with either hand"
-              : "Show your hand in frame");
+              : "Waiting for a hand");
         } else {
           const activeSide = activeHandDegreesRef.current.right ? "right" : "left";
           const activeHandDegree = activeHandDegreesRef.current[activeSide];
@@ -482,8 +472,7 @@ function Camera() {
         }
 
         stopTracking = stop;
-        setTrackerReady(true);
-        setStatus("Show your hand in frame");
+        setStatus("Camera ready");
       } catch (err) {
         console.error("Camera error:", err);
         if (active) {
@@ -512,13 +501,6 @@ function Camera() {
       <div className="camera-view" ref={cameraViewRef}>
         <video ref={videoRef} autoPlay playsInline muted />
         <canvas ref={canvasRef} aria-hidden="true" />
-        {trackerReady && !error && (
-          <div className="camera-hint">
-            {handDetected
-              ? `${detectedFingerCount ?? 0} fingers detected`
-              : "Show your hand in frame"}
-          </div>
-        )}
       </div>
       <div className="chord-settings" role="group" aria-label="Instrument settings">
         <div className="mode-selector setting-card session-mode" role="group" aria-label="Session mode">
